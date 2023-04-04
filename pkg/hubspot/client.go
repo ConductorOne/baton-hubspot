@@ -33,6 +33,10 @@ type TeamsResponse struct {
 	Results []Team `json:"results"`
 }
 
+type RolesResponse struct {
+	Results []Role `json:"results"`
+}
+
 func NewClient(accessToken string, httpClient *http.Client) *Client {
 	return &Client{
 		accessToken: accessToken,
@@ -130,4 +134,28 @@ func (c *Client) GetAccount(ctx context.Context) (Account, *http.Response, error
 	}
 
 	return accountResponse, rawResponse, nil
+}
+
+// GetRoles return all roles under a single account.
+func (c *Client) GetRoles(ctx context.Context) ([]Role, *http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, AccountBaseURL, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req.Header.Add("authorization", fmt.Sprint("Bearer ", c.accessToken))
+	req.Header.Add("accept", "application/json")
+
+	rawResponse, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rawResponse.Body.Close()
+
+	var rolesResponse RolesResponse
+	if err := json.NewDecoder(rawResponse.Body).Decode(&rolesResponse); err != nil {
+		return nil, nil, err
+	}
+
+	return rolesResponse.Results, rawResponse, nil
 }
