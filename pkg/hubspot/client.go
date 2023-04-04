@@ -11,6 +11,7 @@ import (
 
 const BaseURL = "https://api.hubapi.com/"
 const UsersBaseURL = BaseURL + "settings/v3/users"
+const TeamsBaseURL = BaseURL + "settings/v3/users/teams"
 const AccountBaseURL = BaseURL + "account-info/v3"
 
 type Client struct {
@@ -28,6 +29,10 @@ type GetUsersVars struct {
 	After string `json:"after"`
 }
 
+type TeamsResponse struct {
+	Results []Team `json:"results"`
+}
+
 func NewClient(accessToken string, httpClient *http.Client) *Client {
 	return &Client{
 		accessToken: accessToken,
@@ -35,7 +40,6 @@ func NewClient(accessToken string, httpClient *http.Client) *Client {
 	}
 }
 
-// returns query params with pagination options.
 func setupPaginationQuery(query *url.Values, limit int, after string) {
 	// add limit
 	if limit != 0 {
@@ -78,4 +82,28 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 	}
 
 	return userResponse.Results, "", rawResponse, nil
+}
+
+// GetTeams returns all teams for a single account.
+func (c *Client) GetTeams(ctx context.Context) ([]Team, string, *http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, TeamsBaseURL, nil)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	req.Header.Add("authorization", fmt.Sprint("Bearer ", c.accessToken))
+	req.Header.Add("accept", "application/json")
+
+	rawResponse, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	defer rawResponse.Body.Close()
+
+	var teamResponse TeamsResponse
+	if err := json.NewDecoder(rawResponse.Body).Decode(&teamResponse); err != nil {
+		return nil, "", nil, err
+	}
+
+	return teamResponse.Results, "", rawResponse, nil
 }
