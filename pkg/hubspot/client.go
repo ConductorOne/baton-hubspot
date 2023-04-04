@@ -85,10 +85,10 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 }
 
 // GetTeams returns all teams for a single account.
-func (c *Client) GetTeams(ctx context.Context) ([]Team, string, *http.Response, error) {
+func (c *Client) GetTeams(ctx context.Context) ([]Team, *http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, TeamsBaseURL, nil)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	req.Header.Add("authorization", fmt.Sprint("Bearer ", c.accessToken))
@@ -96,14 +96,14 @@ func (c *Client) GetTeams(ctx context.Context) ([]Team, string, *http.Response, 
 
 	rawResponse, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 	defer rawResponse.Body.Close()
 
 	var teamResponse TeamsResponse
 	if err := json.NewDecoder(rawResponse.Body).Decode(&teamResponse); err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
-	return teamResponse.Results, "", rawResponse, nil
+	return teamResponse.Results, rawResponse, nil
 }

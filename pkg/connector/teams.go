@@ -23,7 +23,8 @@ func (o *teamResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 // Create a new connector resource for an HubSpot team.
 func teamResource(ctx context.Context, team *hubspot.Team, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
 	profile := map[string]interface{}{
-		"members_count": team.GetMembersCount(ctx),
+		"team_id":   team.Id,
+		"team_name": team.Name,
 	}
 
 	resource, err := rs.NewGroupResource(
@@ -41,7 +42,7 @@ func teamResource(ctx context.Context, team *hubspot.Team, parentResourceID *v2.
 }
 
 func (o *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
-	teams, _, _, err := o.client.GetTeams(ctx)
+	teams, _, err := o.client.GetTeams(ctx)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to list teams: %w", err)
 	}
