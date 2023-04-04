@@ -11,6 +11,12 @@ type User struct {
 	TeamId string `json:"primaryTeamId"`
 }
 
+type Team struct {
+	BaseResource
+	Name    string   `json:"name"`
+	UserIds []string `json:"userIds"`
+}
+
 type Page struct {
 	After string `json:"after"`
 	Link  string `json:"link"`

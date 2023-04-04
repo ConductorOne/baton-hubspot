@@ -20,6 +20,13 @@ var (
 			v2.ResourceType_TRAIT_USER,
 		},
 	}
+	resourceTypeTeam = &v2.ResourceType{
+		Id:          "team",
+		DisplayName: "Team",
+		Traits: []v2.ResourceType_Trait{
+			v2.ResourceType_TRAIT_GROUP,
+		},
+	}
 )
 
 type HubSpot struct {
@@ -29,6 +36,7 @@ type HubSpot struct {
 func (c *HubSpot) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
 		userBuilder(c.client),
+		teamBuilder(c.client),
 	}
 }
 
