@@ -12,7 +12,7 @@ import (
 const BaseURL = "https://api.hubapi.com/"
 const UsersBaseURL = BaseURL + "settings/v3/users"
 const TeamsBaseURL = BaseURL + "settings/v3/users/teams"
-const AccountBaseURL = BaseURL + "account-info/v3"
+const AccountBaseURL = BaseURL + "account-info/v3/details"
 
 type Client struct {
 	httpClient  *http.Client
@@ -106,4 +106,28 @@ func (c *Client) GetTeams(ctx context.Context) ([]Team, *http.Response, error) {
 	}
 
 	return teamResponse.Results, rawResponse, nil
+}
+
+// GetAccount return informations about single account.
+func (c *Client) GetAccount(ctx context.Context) (Account, *http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, AccountBaseURL, nil)
+	if err != nil {
+		return Account{}, nil, err
+	}
+
+	req.Header.Add("authorization", fmt.Sprint("Bearer ", c.accessToken))
+	req.Header.Add("accept", "application/json")
+
+	rawResponse, err := c.httpClient.Do(req)
+	if err != nil {
+		return Account{}, nil, err
+	}
+	defer rawResponse.Body.Close()
+
+	var accountResponse Account
+	if err := json.NewDecoder(rawResponse.Body).Decode(&accountResponse); err != nil {
+		return Account{}, nil, err
+	}
+
+	return accountResponse, rawResponse, nil
 }

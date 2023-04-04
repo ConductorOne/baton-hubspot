@@ -17,6 +17,11 @@ type Team struct {
 	UserIds []string `json:"userIds"`
 }
 
+type Account struct {
+	Id   int    `json:"portalId"`
+	Type string `json:"accountType"`
+}
+
 type Page struct {
 	After string `json:"after"`
 	Link  string `json:"link"`
