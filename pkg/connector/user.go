@@ -22,7 +22,6 @@ func (o *userResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 
 // Create a new connector resource for an HubSpot user.
 func userResource(ctx context.Context, user *hubspot.User, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
-
 	profile := map[string]interface{}{
 		"login":   user.Email,
 		"user_id": user.Id,
