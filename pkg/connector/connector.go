@@ -27,6 +27,13 @@ var (
 			v2.ResourceType_TRAIT_GROUP,
 		},
 	}
+	resourceTypeAccount = &v2.ResourceType{
+		Id:          "account",
+		DisplayName: "Account",
+		Traits: []v2.ResourceType_Trait{
+			v2.ResourceType_TRAIT_APP,
+		},
+	}
 )
 
 type HubSpot struct {
@@ -37,6 +44,7 @@ func (c *HubSpot) ResourceSyncers(ctx context.Context) []connectorbuilder.Resour
 	return []connectorbuilder.ResourceSyncer{
 		userBuilder(c.client),
 		teamBuilder(c.client),
+		accountBuilder(c.client),
 	}
 }
 
