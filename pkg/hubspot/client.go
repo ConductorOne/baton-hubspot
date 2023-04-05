@@ -12,7 +12,7 @@ import (
 const BaseURL = "https://api.hubapi.com/"
 const UsersBaseURL = BaseURL + "settings/v3/users"
 const TeamsBaseURL = BaseURL + "settings/v3/users/teams"
-const AccountBaseURL = BaseURL + "account-info/v3"
+const AccountBaseURL = BaseURL + "account-info/v3/details"
 
 type Client struct {
 	httpClient  *http.Client
@@ -40,7 +40,7 @@ func NewClient(accessToken string, httpClient *http.Client) *Client {
 	}
 }
 
-func setupPaginationQuery(query *url.Values, limit int, after string) {
+func setupPaginationQuery(query url.Values, limit int, after string) url.Values {
 	// add limit
 	if limit != 0 {
 		query.Add("limit", strconv.Itoa(limit))
@@ -50,45 +50,75 @@ func setupPaginationQuery(query *url.Values, limit int, after string) {
 	if after != "" {
 		query.Add("after", after)
 	}
+
+	return query
 }
 
 // GetUsers returns all users for a single workspace.
-func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]User, string, *http.Response, error) {
-	queryParamaters := url.Values{}
-	setupPaginationQuery(&queryParamaters, getUsersVars.Limit, getUsersVars.After)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, UsersBaseURL, nil)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	req.URL.RawQuery = queryParamaters.Encode()
-	req.Header.Add("authorization", fmt.Sprint("Bearer ", c.accessToken))
-	req.Header.Add("accept", "application/json")
-
-	rawResponse, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, "", nil, err
-	}
-	defer rawResponse.Body.Close()
-
+func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]User, string, error) {
+	queryParams := setupPaginationQuery(url.Values{}, getUsersVars.Limit, getUsersVars.After)
 	var userResponse UsersResponse
-	if err := json.NewDecoder(rawResponse.Body).Decode(&userResponse); err != nil {
-		return nil, "", nil, err
+
+	err := c.doRequest(
+		ctx,
+		UsersBaseURL,
+		&userResponse,
+		queryParams,
+	)
+
+	if err != nil {
+		return nil, "", err
 	}
 
 	if (userResponse.Paging != PaginationData{}) {
-		return userResponse.Results, userResponse.Paging.Next.After, rawResponse, nil
+		return userResponse.Results, userResponse.Paging.Next.After, nil
 	}
 
-	return userResponse.Results, "", rawResponse, nil
+	return userResponse.Results, "", nil
 }
 
 // GetTeams returns all teams for a single account.
-func (c *Client) GetTeams(ctx context.Context) ([]Team, *http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, TeamsBaseURL, nil)
+func (c *Client) GetTeams(ctx context.Context) ([]Team, error) {
+	var teamResponse TeamsResponse
+	err := c.doRequest(
+		ctx,
+		TeamsBaseURL,
+		&teamResponse,
+		nil,
+	)
+
 	if err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+
+	return teamResponse.Results, nil
+}
+
+// GetAccount return informations about single account.
+func (c *Client) GetAccount(ctx context.Context) (Account, error) {
+	var accountResponse Account
+	err := c.doRequest(
+		ctx,
+		AccountBaseURL,
+		&accountResponse,
+		nil,
+	)
+
+	if err != nil {
+		return Account{}, err
+	}
+
+	return accountResponse, nil
+}
+
+func (c *Client) doRequest(ctx context.Context, url string, resourceResponse interface{}, queryParams url.Values) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+
+	if queryParams != nil {
+		req.URL.RawQuery = queryParams.Encode()
 	}
 
 	req.Header.Add("authorization", fmt.Sprint("Bearer ", c.accessToken))
@@ -96,14 +126,14 @@ func (c *Client) GetTeams(ctx context.Context) ([]Team, *http.Response, error) {
 
 	rawResponse, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
+
 	defer rawResponse.Body.Close()
 
-	var teamResponse TeamsResponse
-	if err := json.NewDecoder(rawResponse.Body).Decode(&teamResponse); err != nil {
-		return nil, nil, err
+	if err := json.NewDecoder(rawResponse.Body).Decode(&resourceResponse); err != nil {
+		return err
 	}
 
-	return teamResponse.Results, rawResponse, nil
+	return nil
 }
