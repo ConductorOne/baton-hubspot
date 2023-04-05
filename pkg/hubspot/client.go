@@ -115,6 +115,24 @@ func (c *Client) GetAccount(ctx context.Context) (Account, error) {
 	return accountResponse, nil
 }
 
+// GetUser return information about a single user.
+func (c *Client) GetUser(ctx context.Context, userId string) (User, error) {
+	url := fmt.Sprint(UsersBaseURL, "/", userId)
+
+	var userResponse User
+	err := c.doRequest(
+		ctx,
+		url,
+		&userResponse,
+		nil,
+	)
+	if err != nil {
+		return User{}, err
+	}
+
+	return userResponse, nil
+}
+
 // GetRoles return all roles under a single account.
 func (c *Client) GetRoles(ctx context.Context) ([]Role, error) {
 	var rolesResponse RolesResponse

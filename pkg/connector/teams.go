@@ -85,15 +85,27 @@ func (o *teamResourceType) Entitlements(ctx context.Context, resource *v2.Resour
 }
 
 func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	teamMembers, pageToken, err := o.GetTeamMembers(ctx, resource, token)
+	teamTrait, err := rs.GetGroupTrait(resource)
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	var rv []*v2.Grant
-	for _, user := range teamMembers {
-		u, err := userResource(ctx, &user, nil)
+	userIdsString, ok := rs.GetProfileStringValue(teamTrait.Profile, "team_users")
+	if !ok {
+		return nil, "", nil, fmt.Errorf("error fetching user ids from team profile")
+	}
 
+	userIds := strings.Split(userIdsString, ",")
+
+	var rv []*v2.Grant
+	for _, id := range userIds {
+		user, err := o.client.GetUser(ctx, id)
+		if err != nil {
+			return nil, "", nil, err
+		}
+
+		userCopy := user
+		u, err := userResource(ctx, &userCopy, nil)
 		if err != nil {
 			return nil, "", nil, err
 		}
@@ -108,45 +120,7 @@ func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 		)
 	}
 
-	return rv, pageToken, nil, nil
-}
-
-func (o *teamResourceType) GetTeamMembers(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]hubspot.User, string, error) {
-	bag, err := parsePageToken(token.Token, &v2.ResourceId{ResourceType: resourceTypeUser.Id})
-	if err != nil {
-		return nil, "", err
-	}
-
-	users, nextToken, err := o.client.GetUsers(ctx, hubspot.GetUsersVars{
-		Limit: ResourcesPageSize,
-		After: bag.PageToken(),
-	})
-	if err != nil {
-		return nil, "", fmt.Errorf("hubspot-connector: failed to fetch users: %w", err)
-	}
-
-	pageToken, err := bag.NextToken(nextToken)
-	if err != nil {
-		return nil, "", err
-	}
-
-	teamTrait, err := rs.GetGroupTrait(resource)
-	if err != nil {
-		return nil, "", err
-	}
-
-	userIdsPayload, ok := rs.GetProfileStringValue(teamTrait.Profile, "team_users")
-	if !ok {
-		return nil, "", fmt.Errorf("error fetching user ids from team profile")
-	}
-
-	userIds := strings.Split(userIdsPayload, ",")
-	filterPresentUsers := func(user hubspot.User) bool {
-		return includes(userIds, user.Id)
-	}
-	filteredUsers := filter(users, filterPresentUsers)
-
-	return filteredUsers, pageToken, nil
+	return rv, "", nil, nil
 }
 
 func teamBuilder(client *hubspot.Client) *teamResourceType {
