@@ -67,33 +67,21 @@ func (o *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 }
 
 func (o *teamResourceType) Entitlements(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	teamMembers, pageToken, err := o.GetTeamMembers(ctx, resource, token)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
 	var rv []*v2.Entitlement
-	for _, user := range teamMembers {
-		assignmentOptions := []ent.EntitlementOption{
-			ent.WithGrantableTo(resourceTypeUser),
-			ent.WithAnnotation(
-				&v2.V1Identifier{
-					Id: fmt.Sprintf("team:%s:%s:%s", resource.Id.Resource, user.Id, memberEntitlement),
-				},
-			),
-			ent.WithDisplayName(fmt.Sprintf("%s - Team %s of %s", user.Email, memberEntitlement, resource.DisplayName)),
-			ent.WithDescription(fmt.Sprintf("Access to %s team in HubSpot", resource.DisplayName)),
-		}
-
-		// create an entitlement
-		rv = append(rv, ent.NewAssignmentEntitlement(
-			resource,
-			memberEntitlement,
-			assignmentOptions...,
-		))
+	assignmentOptions := []ent.EntitlementOption{
+		ent.WithGrantableTo(resourceTypeUser),
+		ent.WithDisplayName(fmt.Sprintf("%s Team %s", resource.DisplayName, memberEntitlement)),
+		ent.WithDescription(fmt.Sprintf("Access to %s team in HubSpot", resource.DisplayName)),
 	}
 
-	return rv, pageToken, nil, nil
+	// create an entitlement
+	rv = append(rv, ent.NewAssignmentEntitlement(
+		resource,
+		memberEntitlement,
+		assignmentOptions...,
+	))
+
+	return rv, "", nil, nil
 }
 
 func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
@@ -104,14 +92,6 @@ func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 
 	var rv []*v2.Grant
 	for _, user := range teamMembers {
-		assignmentOptions := []grant.GrantOption{
-			grant.WithAnnotation(
-				&v2.V1Identifier{
-					Id: fmt.Sprintf("team-grant:%s:%d:%s", resource.Id.Resource, resource.Id, memberEntitlement),
-				},
-			),
-		}
-
 		u, err := userResource(ctx, &user, nil)
 
 		if err != nil {
@@ -124,7 +104,6 @@ func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 				resource,
 				memberEntitlement,
 				u.Id,
-				assignmentOptions...,
 			),
 		)
 	}
