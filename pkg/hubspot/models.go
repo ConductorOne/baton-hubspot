@@ -13,8 +13,9 @@ type User struct {
 
 type Team struct {
 	BaseResource
-	Name    string   `json:"name"`
-	UserIds []string `json:"userIds"`
+	Name             string   `json:"name"`
+	UserIds          []string `json:"userIds"`
+	SecondaryUserIds []string `json:"secondaryUserIds"`
 }
 
 type Account struct {

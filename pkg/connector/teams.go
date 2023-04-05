@@ -27,10 +27,15 @@ func (o *teamResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 
 // Create a new connector resource for an HubSpot team.
 func teamResource(ctx context.Context, team *hubspot.Team, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
+	userIds := make([]string, len(team.UserIds)+len(team.SecondaryUserIds))
+
+	copy(userIds, team.UserIds)
+	copy(userIds, team.SecondaryUserIds)
+
 	profile := map[string]interface{}{
 		"team_id":    team.Id,
 		"team_name":  team.Name,
-		"team_users": strings.Join(team.UserIds, ","),
+		"team_users": strings.Join(userIds, ","),
 	}
 
 	resource, err := rs.NewGroupResource(
