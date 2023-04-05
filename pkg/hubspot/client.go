@@ -33,6 +33,10 @@ type TeamsResponse struct {
 	Results []Team `json:"results"`
 }
 
+type RolesResponse struct {
+	Results []Role `json:"results"`
+}
+
 func NewClient(accessToken string, httpClient *http.Client) *Client {
 	return &Client{
 		accessToken: accessToken,
@@ -109,6 +113,36 @@ func (c *Client) GetAccount(ctx context.Context) (Account, error) {
 	}
 
 	return accountResponse, nil
+}
+
+// GetUser return information about a single user.
+func (c *Client) GetUser(ctx context.Context, userId string) (User, error) {
+	url := fmt.Sprint(UsersBaseURL, "/", userId)
+
+	var userResponse User
+	err := c.doRequest(
+		ctx,
+		url,
+		&userResponse,
+		nil,
+	)
+	if err != nil {
+		return User{}, err
+	}
+
+	return userResponse, nil
+}
+
+// GetRoles return all roles under a single account.
+func (c *Client) GetRoles(ctx context.Context) ([]Role, error) {
+	var rolesResponse RolesResponse
+	err := c.doRequest(ctx, AccountBaseURL, &rolesResponse, nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return rolesResponse.Results, nil
 }
 
 func (c *Client) doRequest(ctx context.Context, url string, resourceResponse interface{}, queryParams url.Values) error {

@@ -13,14 +13,27 @@ type User struct {
 
 type Team struct {
 	BaseResource
-	Name    string   `json:"name"`
-	UserIds []string `json:"userIds"`
+	Name             string   `json:"name"`
+	UserIds          []string `json:"userIds"`
+	SecondaryUserIds []string `json:"secondaryUserIds"`
 }
 
 type Account struct {
 	Id   int    `json:"portalId"`
 	Type string `json:"accountType"`
 }
+
+type Role struct {
+	BaseResource
+	Name string `json:"name"`
+	// TODO: reserach this with enterprise api key
+	// Permissions []Permission `json:"permissions"`
+}
+
+// type Permission struct {
+// 	BaseResource
+// 	Name string `json:"name"`
+// }
 
 type Page struct {
 	After string `json:"after"`
