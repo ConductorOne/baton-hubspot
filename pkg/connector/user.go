@@ -53,7 +53,7 @@ func (o *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 		return nil, "", nil, err
 	}
 
-	users, nextToken, _, err := o.client.GetUsers(
+	users, nextToken, err := o.client.GetUsers(
 		ctx,
 		hubspot.GetUsersVars{Limit: ResourcesPageSize, After: bag.PageToken()},
 	)

@@ -42,7 +42,7 @@ func teamResource(ctx context.Context, team *hubspot.Team, parentResourceID *v2.
 }
 
 func (o *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
-	teams, _, err := o.client.GetTeams(ctx)
+	teams, err := o.client.GetTeams(ctx)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to list teams: %w", err)
 	}
