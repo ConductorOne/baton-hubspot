@@ -42,7 +42,7 @@ func accountResource(ctx context.Context, account *hubspot.Account, parentResour
 }
 
 func (o *accountResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
-	account, _, err := o.client.GetAccount(ctx)
+	account, err := o.client.GetAccount(ctx)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to list account: %w", err)
 	}
