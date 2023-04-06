@@ -6,6 +6,12 @@
 
 Check out [Baton](https://github.com/conductorone/baton) to learn more about the project in general.
 
+# Prerequisites
+
+To obtain an API key, you need to create an account in HubSpot and create a private application, under which you can create an API key. This means that you can connect multiple API keys to one account in HubSpot.
+
+Be aware that to sync also the user or team roles, you have to have an enterprise account since these roles are available only under enterprise account.
+
 # Getting Started
 
 ## source
