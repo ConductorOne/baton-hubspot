@@ -10,6 +10,8 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -55,6 +57,15 @@ func (as *HubSpot) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) 
 
 // Validate hits the HubSpot API to validate that the API key passed has admin rights.
 func (as *HubSpot) Validate(ctx context.Context) (annotations.Annotations, error) {
+	_, err := as.client.GetAccount(ctx)
+
+	if err != nil {
+		return nil, status.Error(codes.Unauthenticated, "Provided Access Token is invalid")
+	}
+
+	// TODO: Add check for account type and add some annotation in case
+	// 		 account is not enterprise?
+
 	return nil, nil
 }
 
