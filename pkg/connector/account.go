@@ -49,11 +49,11 @@ func (o *accountResourceType) List(ctx context.Context, parentId *v2.ResourceId,
 
 	var rv []*v2.Resource
 	accountCopy := account
-	ur, err := accountResource(ctx, &accountCopy, parentId)
+	acc, err := accountResource(ctx, &accountCopy, parentId)
 	if err != nil {
 		return nil, "", nil, err
 	}
-	rv = append(rv, ur)
+	rv = append(rv, acc)
 
 	return rv, "", nil, nil
 }

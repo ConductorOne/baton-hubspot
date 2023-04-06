@@ -61,11 +61,11 @@ func (o *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 	var rv []*v2.Resource
 	for _, team := range teams {
 		teamCopy := team
-		ur, err := teamResource(ctx, &teamCopy, parentId)
+		tResource, err := teamResource(ctx, &teamCopy, parentId)
 		if err != nil {
 			return nil, "", nil, err
 		}
-		rv = append(rv, ur)
+		rv = append(rv, tResource)
 	}
 
 	return rv, "", nil, nil
@@ -79,7 +79,7 @@ func (o *teamResourceType) Entitlements(ctx context.Context, resource *v2.Resour
 		ent.WithDescription(fmt.Sprintf("Access to %s team in HubSpot", resource.DisplayName)),
 	}
 
-	// create an entitlement
+	// create membership entitlement
 	rv = append(rv, ent.NewAssignmentEntitlement(
 		resource,
 		memberEntitlement,
@@ -102,6 +102,7 @@ func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 
 	userIds := strings.Split(userIdsString, ",")
 
+	// create membership grants
 	var rv []*v2.Grant
 	for _, id := range userIds {
 		user, err := o.client.GetUser(ctx, id)
