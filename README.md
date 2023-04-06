@@ -58,7 +58,7 @@ Flags:
   -h, --help                  help for baton-hubspot
       --log-format string     The output format for logs: json, console ($BATON_LOG_FORMAT) (default "json")
       --log-level string      The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
-      --token string          The GitHub access token used to connect to the Github API. ($BATON_TOKEN)
+      --token string          The Hubspot access token used to connect to the Hubspot API. ($BATON_TOKEN)
   -v, --version               version for baton-hubspot
 
 Use "baton-hubspot [command] --help" for more information about a command.

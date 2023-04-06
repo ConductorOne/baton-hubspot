@@ -26,7 +26,7 @@ type Account struct {
 type Role struct {
 	BaseResource
 	Name string `json:"name"`
-	// TODO: reserach this with enterprise api key
+	// TODO: enterprise acc
 	// Permissions []Permission `json:"permissions"`
 }
 
