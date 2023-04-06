@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const BaseURL = "https://api.hubapi.com/"
@@ -164,6 +167,10 @@ func (c *Client) doRequest(ctx context.Context, url string, resourceResponse int
 	}
 
 	defer rawResponse.Body.Close()
+
+	if rawResponse.StatusCode >= 300 {
+		return status.Error(codes.Code(rawResponse.StatusCode), "Request failed")
+	}
 
 	if err := json.NewDecoder(rawResponse.Body).Decode(&resourceResponse); err != nil {
 		return err
