@@ -101,7 +101,7 @@ func (c *Client) GetTeams(ctx context.Context) ([]Team, error) {
 	return teamResponse.Results, nil
 }
 
-// GetAccount return informations about single account.
+// GetAccount returns information about single account.
 func (c *Client) GetAccount(ctx context.Context) (Account, error) {
 	var accountResponse Account
 	err := c.doRequest(
@@ -118,7 +118,7 @@ func (c *Client) GetAccount(ctx context.Context) (Account, error) {
 	return accountResponse, nil
 }
 
-// GetUser return information about a single user.
+// GetUser returns information about a single user.
 func (c *Client) GetUser(ctx context.Context, userId string) (User, error) {
 	url := fmt.Sprint(UsersBaseURL, "/", userId)
 
@@ -136,7 +136,7 @@ func (c *Client) GetUser(ctx context.Context, userId string) (User, error) {
 	return userResponse, nil
 }
 
-// GetRoles return all roles under a single account.
+// GetRoles returns all roles under a single account.
 func (c *Client) GetRoles(ctx context.Context) ([]Role, error) {
 	var rolesResponse RolesResponse
 	err := c.doRequest(ctx, AccountBaseURL, &rolesResponse, nil)

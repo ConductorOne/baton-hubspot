@@ -2,7 +2,6 @@ package connector
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ConductorOne/baton-hubspot/pkg/hubspot"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -52,19 +51,18 @@ func (c *HubSpot) ResourceSyncers(ctx context.Context) []connectorbuilder.Resour
 
 // Metadata returns metadata about the connector.
 func (as *HubSpot) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
-	return nil, fmt.Errorf("not implemented")
+	return &v2.ConnectorMetadata{
+		DisplayName: "HubSpot",
+	}, nil
 }
 
-// Validate hits the HubSpot API to validate that the API key passed has admin rights.
+// Validate hits the HubSpot API to verify that the credentials are valid.
 func (as *HubSpot) Validate(ctx context.Context) (annotations.Annotations, error) {
 	_, err := as.client.GetAccount(ctx)
 
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "Provided Access Token is invalid")
 	}
-
-	// TODO: Add check for account type and add some annotation in case
-	// 		 account is not enterprise?
 
 	return nil, nil
 }
