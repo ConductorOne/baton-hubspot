@@ -3,11 +3,14 @@ package connector
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/ConductorOne/baton-hubspot/pkg/hubspot"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
+	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
+	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
@@ -22,9 +25,13 @@ func (o *userResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 
 // Create a new connector resource for an HubSpot user.
 func userResource(ctx context.Context, user *hubspot.User, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
+	roleIds := make([]string, len(user.RoleIds))
+	copy(roleIds, user.RoleIds)
+
 	profile := map[string]interface{}{
-		"login":   user.Email,
-		"user_id": user.Id,
+		"login":         user.Email,
+		"user_id":       user.Id,
+		"user_role_ids": strings.Join(roleIds, ","),
 	}
 
 	userTraitOptions := []rs.UserTraitOption{
@@ -80,12 +87,90 @@ func (o *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 	return rv, pageToken, nil, nil
 }
 
-func (o *userResourceType) Entitlements(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (o *userResourceType) Entitlements(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+	// fetch all available user roles
+	roles, err := o.client.GetRoles(ctx)
+	if err != nil {
+		// return empty list of entitlements as account does not support roles
+		return nil, "", nil, nil
+	}
+
+	// parse the roleIds from the resource
+	userTrait, err := rs.GetUserTrait(resource)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	userRoleIdsString, ok := rs.GetProfileStringValue(userTrait.Profile, "user_role_ids")
+	if !ok {
+		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to get user_role_ids from user profile")
+	}
+
+	userRoleIds := strings.Split(userRoleIdsString, ",")
+
+	var rv []*v2.Entitlement
+	for _, role := range roles {
+		_, err := find(role.Id, userRoleIds)
+		if err != nil {
+			continue
+		}
+
+		assignmentOptions := []ent.EntitlementOption{
+			ent.WithGrantableTo(resourceTypeUser),
+			ent.WithDisplayName(fmt.Sprintf("%s User %s", resource.DisplayName, titleCaser.String(role.Name))),
+			ent.WithDescription(fmt.Sprintf("Permission access for a user %s in HubSpot", resource.DisplayName)),
+		}
+
+		// create the entitlement
+		rv = append(rv, ent.NewPermissionEntitlement(
+			resource,
+			role.Name,
+			assignmentOptions...,
+		))
+	}
+
+	return rv, "", nil, nil
 }
 
-func (o *userResourceType) Grants(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (o *userResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+	// fetch all available user roles
+	roles, err := o.client.GetRoles(ctx)
+	if err != nil {
+		// return empty list of entitlements as account does not support roles
+		return nil, "", nil, nil
+	}
+
+	// parse the roleIds from the resource
+	userTrait, err := rs.GetUserTrait(resource)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	userRoleIdsString, ok := rs.GetProfileStringValue(userTrait.Profile, "user_role_ids")
+	if !ok {
+		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to get user_role_ids from user profile")
+	}
+
+	userRoleIds := strings.Split(userRoleIdsString, ",")
+
+	var rv []*v2.Grant
+	for _, role := range roles {
+		_, err := find(role.Id, userRoleIds)
+		if err != nil {
+			continue
+		}
+
+		rv = append(
+			rv,
+			grant.NewGrant(
+				resource,
+				role.Name,
+				resource.Id,
+			),
+		)
+	}
+
+	return rv, "", nil, nil
 }
 
 func userBuilder(client *hubspot.Client) *userResourceType {

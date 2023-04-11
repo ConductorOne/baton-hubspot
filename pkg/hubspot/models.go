@@ -6,9 +6,9 @@ type BaseResource struct {
 
 type User struct {
 	BaseResource
-	Email  string `json:"email"`
-	RoleId string `json:"roleId"`
-	TeamId string `json:"primaryTeamId"`
+	Email   string   `json:"email"`
+	RoleIds []string `json:"roleIds"`
+	TeamId  string   `json:"primaryTeamId"`
 }
 
 type Team struct {
@@ -26,14 +26,7 @@ type Account struct {
 type Role struct {
 	BaseResource
 	Name string `json:"name"`
-	// TODO: enterprise acc
-	// Permissions []Permission `json:"permissions"`
 }
-
-// type Permission struct {
-// 	BaseResource
-// 	Name string `json:"name"`
-// }
 
 type Page struct {
 	After string `json:"after"`
