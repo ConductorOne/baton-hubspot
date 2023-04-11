@@ -8,6 +8,8 @@ import (
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
+	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
+	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
@@ -58,12 +60,87 @@ func (o *accountResourceType) List(ctx context.Context, parentId *v2.ResourceId,
 	return rv, "", nil, nil
 }
 
-func (o *accountResourceType) Entitlements(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (o *accountResourceType) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+	// fetch all available user roles
+	roles, _ := o.client.GetRoles(ctx)
+	if roles == nil {
+		// do not return user entitlements when account does not support roles
+		return nil, "", nil, nil
+	}
+
+	var rv []*v2.Entitlement
+
+	for _, role := range roles {
+		assignmentOptions := []ent.EntitlementOption{
+			ent.WithGrantableTo(resourceTypeUser),
+			ent.WithDisplayName(fmt.Sprintf("%s Acc %s", resource.DisplayName, titleCaser.String(role.Name))),
+			ent.WithDescription(fmt.Sprintf("Account %s role in HubSpot", resource.DisplayName)),
+		}
+
+		// create the entitlement
+		rv = append(rv, ent.NewPermissionEntitlement(
+			resource,
+			role.Name,
+			assignmentOptions...,
+		))
+	}
+
+	return rv, "", nil, nil
 }
 
-func (o *accountResourceType) Grants(_ context.Context, _ *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (o *accountResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+	// fetch all available user roles
+	roles, _ := o.client.GetRoles(ctx)
+	if roles == nil {
+		// do not return user grants when account does not support roles
+		return nil, "", nil, nil
+	}
+
+	// parse the roleIds from the users
+	bag, err := parsePageToken(token.Token, &v2.ResourceId{ResourceType: resourceTypeUser.Id})
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	users, nextToken, err := o.client.GetUsers(
+		ctx,
+		hubspot.GetUsersVars{Limit: ResourcesPageSize, After: bag.PageToken()},
+	)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	pageToken, err := bag.NextToken(nextToken)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	var rv []*v2.Grant
+	for _, user := range users {
+		for _, roleId := range user.RoleIds {
+			role, err := findRole(roleId, roles)
+			if err != nil {
+				continue
+			}
+
+			userCopy := user
+			u, err := userResource(ctx, &userCopy, nil)
+			if err != nil {
+				return nil, "", nil, err
+			}
+
+			rv = append(
+				rv,
+				grant.NewGrant(
+					resource,
+					role.Name,
+					u.Id,
+				),
+			)
+		}
+	}
+
+	return rv, pageToken, nil, nil
 }
 
 func accountBuilder(client *hubspot.Client) *accountResourceType {

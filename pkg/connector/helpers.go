@@ -3,6 +3,7 @@ package connector
 import (
 	"fmt"
 
+	"github.com/ConductorOne/baton-hubspot/pkg/hubspot"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"golang.org/x/text/cases"
@@ -29,12 +30,12 @@ func parsePageToken(i string, resourceID *v2.ResourceId) (*pagination.Bag, error
 	return b, nil
 }
 
-func find(value string, items []string) (string, error) {
-	for _, item := range items {
-		if item == value {
-			return item, nil
+func findRole(roleId string, roles []hubspot.Role) (hubspot.Role, error) {
+	for _, role := range roles {
+		if role.Id == roleId {
+			return role, nil
 		}
 	}
 
-	return "", fmt.Errorf("value %s not found in %v", value, items)
+	return hubspot.Role{}, fmt.Errorf("role id %s not found in %v", roleId, roles)
 }
