@@ -3,7 +3,6 @@ package connector
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/ConductorOne/baton-hubspot/pkg/hubspot"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -23,13 +22,9 @@ func (o *userResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 
 // Create a new connector resource for an HubSpot user.
 func userResource(ctx context.Context, user *hubspot.User, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
-	roleIds := make([]string, len(user.RoleIds))
-	copy(roleIds, user.RoleIds)
-
 	profile := map[string]interface{}{
-		"login":         user.Email,
-		"user_id":       user.Id,
-		"user_role_ids": strings.Join(roleIds, ","),
+		"login":   user.Email,
+		"user_id": user.Id,
 	}
 
 	userTraitOptions := []rs.UserTraitOption{
