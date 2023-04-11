@@ -89,9 +89,9 @@ func (o *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 
 func (o *userResourceType) Entitlements(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
 	// fetch all available user roles
-	roles, err := o.client.GetRoles(ctx)
-	if err != nil {
-		// return empty list of entitlements as account does not support roles
+	roles, _ := o.client.GetRoles(ctx)
+	if roles == nil {
+		// do not return user entitlements when account does not support roles
 		return nil, "", nil, nil
 	}
 
@@ -134,9 +134,9 @@ func (o *userResourceType) Entitlements(ctx context.Context, resource *v2.Resour
 
 func (o *userResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	// fetch all available user roles
-	roles, err := o.client.GetRoles(ctx)
-	if err != nil {
-		// return empty list of entitlements as account does not support roles
+	roles, _ := o.client.GetRoles(ctx)
+	if roles == nil {
+		// do not return user grants when account does not support roles
 		return nil, "", nil, nil
 	}
 
