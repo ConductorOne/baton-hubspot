@@ -15,6 +15,7 @@ import (
 const BaseURL = "https://api.hubapi.com/"
 const UsersBaseURL = BaseURL + "settings/v3/users"
 const TeamsBaseURL = BaseURL + "settings/v3/users/teams"
+const RolesBaseURL = BaseURL + "settings/v3/users/roles"
 const AccountBaseURL = BaseURL + "account-info/v3/details"
 
 type Client struct {
@@ -139,7 +140,7 @@ func (c *Client) GetUser(ctx context.Context, userId string) (User, error) {
 // GetRoles returns all roles under a single account.
 func (c *Client) GetRoles(ctx context.Context) ([]Role, error) {
 	var rolesResponse RolesResponse
-	err := c.doRequest(ctx, AccountBaseURL, &rolesResponse, nil)
+	err := c.doRequest(ctx, RolesBaseURL, &rolesResponse, nil)
 
 	if err != nil {
 		return nil, err
