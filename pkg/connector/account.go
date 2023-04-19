@@ -18,8 +18,8 @@ type accountResourceType struct {
 	client       *hubspot.Client
 }
 
-func (o *accountResourceType) ResourceType(_ context.Context) *v2.ResourceType {
-	return o.resourceType
+func (acc *accountResourceType) ResourceType(_ context.Context) *v2.ResourceType {
+	return acc.resourceType
 }
 
 // Create a new connector resource for an HubSpot account.
@@ -43,26 +43,26 @@ func accountResource(ctx context.Context, account *hubspot.Account, parentResour
 	return resource, nil
 }
 
-func (o *accountResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
-	account, err := o.client.GetAccount(ctx)
+func (acc *accountResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+	account, err := acc.client.GetAccount(ctx)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to list account: %w", err)
 	}
 
 	var rv []*v2.Resource
 	accountCopy := account
-	acc, err := accountResource(ctx, &accountCopy, parentId)
+	ar, err := accountResource(ctx, &accountCopy, parentId)
 	if err != nil {
 		return nil, "", nil, err
 	}
-	rv = append(rv, acc)
+	rv = append(rv, ar)
 
 	return rv, "", nil, nil
 }
 
-func (o *accountResourceType) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (acc *accountResourceType) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
 	// fetch all available user roles
-	roles, _ := o.client.GetRoles(ctx)
+	roles, _ := acc.client.GetRoles(ctx)
 	if roles == nil {
 		// do not return user entitlements when account does not support roles
 		return nil, "", nil, nil
@@ -88,9 +88,9 @@ func (o *accountResourceType) Entitlements(ctx context.Context, resource *v2.Res
 	return rv, "", nil, nil
 }
 
-func (o *accountResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	// fetch all available user roles
-	roles, _ := o.client.GetRoles(ctx)
+	roles, _ := acc.client.GetRoles(ctx)
 	if roles == nil {
 		// do not return user grants when account does not support roles
 		return nil, "", nil, nil
@@ -102,7 +102,7 @@ func (o *accountResourceType) Grants(ctx context.Context, resource *v2.Resource,
 		return nil, "", nil, err
 	}
 
-	users, nextToken, err := o.client.GetUsers(
+	users, nextToken, err := acc.client.GetUsers(
 		ctx,
 		hubspot.GetUsersVars{Limit: ResourcesPageSize, After: bag.PageToken()},
 	)

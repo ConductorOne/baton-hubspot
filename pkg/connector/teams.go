@@ -21,11 +21,11 @@ type teamResourceType struct {
 	client       *hubspot.Client
 }
 
-func (o *teamResourceType) ResourceType(_ context.Context) *v2.ResourceType {
-	return o.resourceType
+func (t *teamResourceType) ResourceType(_ context.Context) *v2.ResourceType {
+	return t.resourceType
 }
 
-// Create a new connector resource for an HubSpot team.
+// Create a new connector resource for an HubSpot Team.
 func teamResource(ctx context.Context, team *hubspot.Team, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
 	userIds := make([]string, len(team.UserIds)+len(team.SecondaryUserIds))
 
@@ -52,8 +52,8 @@ func teamResource(ctx context.Context, team *hubspot.Team, parentResourceID *v2.
 	return resource, nil
 }
 
-func (o *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
-	teams, err := o.client.GetTeams(ctx)
+func (t *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+	teams, err := t.client.GetTeams(ctx)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to list teams: %w", err)
 	}
@@ -71,7 +71,7 @@ func (o *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 	return rv, "", nil, nil
 }
 
-func (o *teamResourceType) Entitlements(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (t *teamResourceType) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
 	var rv []*v2.Entitlement
 	assignmentOptions := []ent.EntitlementOption{
 		ent.WithGrantableTo(resourceTypeUser),
@@ -89,7 +89,7 @@ func (o *teamResourceType) Entitlements(ctx context.Context, resource *v2.Resour
 	return rv, "", nil, nil
 }
 
-func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	teamTrait, err := rs.GetGroupTrait(resource)
 	if err != nil {
 		return nil, "", nil, err
@@ -105,7 +105,7 @@ func (o *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 	// create membership grants
 	var rv []*v2.Grant
 	for _, id := range userIds {
-		user, err := o.client.GetUser(ctx, id)
+		user, err := t.client.GetUser(ctx, id)
 		if err != nil {
 			return nil, "", nil, err
 		}

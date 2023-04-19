@@ -16,8 +16,8 @@ type userResourceType struct {
 	client       *hubspot.Client
 }
 
-func (o *userResourceType) ResourceType(_ context.Context) *v2.ResourceType {
-	return o.resourceType
+func (u *userResourceType) ResourceType(_ context.Context) *v2.ResourceType {
+	return u.resourceType
 }
 
 // Create a new connector resource for an HubSpot user.
@@ -48,13 +48,13 @@ func userResource(ctx context.Context, user *hubspot.User, parentResourceID *v2.
 	return resource, nil
 }
 
-func (o *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	bag, err := parsePageToken(token.Token, &v2.ResourceId{ResourceType: resourceTypeUser.Id})
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	users, nextToken, err := o.client.GetUsers(
+	users, nextToken, err := u.client.GetUsers(
 		ctx,
 		hubspot.GetUsersVars{Limit: ResourcesPageSize, After: bag.PageToken()},
 	)
@@ -70,21 +70,23 @@ func (o *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 	var rv []*v2.Resource
 	for _, user := range users {
 		userCopy := user
+
 		ur, err := userResource(ctx, &userCopy, parentId)
 		if err != nil {
 			return nil, "", nil, err
 		}
+
 		rv = append(rv, ur)
 	}
 
 	return rv, pageToken, nil, nil
 }
 
-func (o *userResourceType) Entitlements(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (u *userResourceType) Entitlements(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
 	return nil, "", nil, nil
 }
 
-func (o *userResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+func (u *userResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	return nil, "", nil, nil
 }
 

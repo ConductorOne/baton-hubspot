@@ -41,24 +41,24 @@ type HubSpot struct {
 	client *hubspot.Client
 }
 
-func (c *HubSpot) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
+func (hs *HubSpot) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
-		userBuilder(c.client),
-		teamBuilder(c.client),
-		accountBuilder(c.client),
+		accountBuilder(hs.client),
+		teamBuilder(hs.client),
+		userBuilder(hs.client),
 	}
 }
 
 // Metadata returns metadata about the connector.
-func (as *HubSpot) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
+func (hs *HubSpot) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 	return &v2.ConnectorMetadata{
 		DisplayName: "HubSpot",
 	}, nil
 }
 
 // Validate hits the HubSpot API to verify that the credentials are valid.
-func (as *HubSpot) Validate(ctx context.Context) (annotations.Annotations, error) {
-	_, err := as.client.GetAccount(ctx)
+func (hs *HubSpot) Validate(ctx context.Context) (annotations.Annotations, error) {
+	_, err := hs.client.GetAccount(ctx)
 
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "Provided Access Token is invalid")
