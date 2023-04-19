@@ -8,11 +8,27 @@ Check out [Baton](https://github.com/conductorone/baton) to learn more about the
 
 # Prerequisites
 
-To obtain an API key, you need to create an account in HubSpot and create a private application, under which you can create an API key. This means that you can connect multiple API keys to one account in HubSpot.
+To obtain an API key, you need to create an account in HubSpot and create a private application, under which you can create an API key. (More information [here](https://developers.hubspot.com/docs/api/intro-to-auth)) This means that you can connect multiple API keys to one account in HubSpot, but you can only connect one account to one API key.
 
 Be aware that to sync also the user or team roles, you have to have an enterprise account since these roles are available only under enterprise account.
 
 # Getting Started
+
+## brew
+
+```
+brew install conductorone/baton/baton conductorone/baton/baton-hubspot
+
+BATON_TOKEN=hubspotAccessToken baton-hubspot
+baton resources
+```
+
+## docker
+
+```
+docker run --rm -v $(pwd):/out -e BATON_TOKEN=hubspotAccessToken ghcr.io/conductorone/baton-hubspot:latest -f "/out/sync.c1z"
+docker run --rm -v $(pwd):/out ghcr.io/conductorone/baton:latest -f "/out/sync.c1z" resources
+```
 
 ## source
 
