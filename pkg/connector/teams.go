@@ -43,6 +43,7 @@ func teamResource(ctx context.Context, team *hubspot.Team, parentResourceID *v2.
 		resourceTypeTeam,
 		team.Id,
 		[]rs.GroupTraitOption{rs.WithGroupProfile(profile)},
+		rs.WithParentResourceID(parentResourceID),
 	)
 
 	if err != nil {
@@ -53,6 +54,10 @@ func teamResource(ctx context.Context, team *hubspot.Team, parentResourceID *v2.
 }
 
 func (t *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+	if parentId == nil {
+		return nil, "", nil, nil
+	}
+
 	teams, err := t.client.GetTeams(ctx)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to list teams: %w", err)

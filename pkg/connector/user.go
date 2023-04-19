@@ -49,6 +49,10 @@ func userResource(ctx context.Context, user *hubspot.User, parentResourceID *v2.
 }
 
 func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+	if parentId == nil {
+		return nil, "", nil, nil
+	}
+
 	bag, err := parsePageToken(token.Token, &v2.ResourceId{ResourceType: resourceTypeUser.Id})
 	if err != nil {
 		return nil, "", nil, err

@@ -33,7 +33,14 @@ func accountResource(ctx context.Context, account *hubspot.Account, parentResour
 		fmt.Sprint(account.Id),
 		resourceTypeAccount,
 		account.Id,
-		[]rs.AppTraitOption{rs.WithAppProfile(profile)},
+		[]rs.AppTraitOption{
+			rs.WithAppProfile(profile),
+		},
+		rs.WithParentResourceID(parentResourceID),
+		rs.WithAnnotation(
+			&v2.ChildResourceType{ResourceTypeId: resourceTypeUser.Id},
+			&v2.ChildResourceType{ResourceTypeId: resourceTypeTeam.Id},
+		),
 	)
 
 	if err != nil {
