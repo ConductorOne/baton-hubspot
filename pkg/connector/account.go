@@ -51,7 +51,7 @@ func accountResource(ctx context.Context, account *hubspot.Account, parentResour
 }
 
 func (acc *accountResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
-	account, err := acc.client.GetAccount(ctx)
+	account, annotations, err := acc.client.GetAccount(ctx)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to list account: %w", err)
 	}
@@ -64,15 +64,15 @@ func (acc *accountResourceType) List(ctx context.Context, parentId *v2.ResourceI
 	}
 	rv = append(rv, ar)
 
-	return rv, "", nil, nil
+	return rv, "", annotations, nil
 }
 
 func (acc *accountResourceType) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
 	// fetch all available user roles
-	roles, _ := acc.client.GetRoles(ctx)
+	roles, annotations, _ := acc.client.GetRoles(ctx)
 	if roles == nil {
 		// do not return user entitlements when account does not support roles
-		return nil, "", nil, nil
+		return nil, "", annotations, nil
 	}
 
 	var rv []*v2.Entitlement
@@ -92,12 +92,12 @@ func (acc *accountResourceType) Entitlements(ctx context.Context, resource *v2.R
 		))
 	}
 
-	return rv, "", nil, nil
+	return rv, "", annotations, nil
 }
 
 func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	// fetch all available user roles
-	roles, _ := acc.client.GetRoles(ctx)
+	roles, _, _ := acc.client.GetRoles(ctx)
 	if roles == nil {
 		// do not return user grants when account does not support roles
 		return nil, "", nil, nil
@@ -109,7 +109,7 @@ func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resourc
 		return nil, "", nil, err
 	}
 
-	users, nextToken, err := acc.client.GetUsers(
+	users, nextToken, annotations, err := acc.client.GetUsers(
 		ctx,
 		hubspot.GetUsersVars{Limit: ResourcesPageSize, After: bag.PageToken()},
 	)
@@ -147,7 +147,7 @@ func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resourc
 		}
 	}
 
-	return rv, pageToken, nil, nil
+	return rv, pageToken, annotations, nil
 }
 
 func accountBuilder(client *hubspot.Client) *accountResourceType {

@@ -58,13 +58,13 @@ func (hs *HubSpot) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) 
 
 // Validate hits the HubSpot API to verify that the credentials are valid.
 func (hs *HubSpot) Validate(ctx context.Context) (annotations.Annotations, error) {
-	_, err := hs.client.GetAccount(ctx)
+	_, annotations, err := hs.client.GetAccount(ctx)
 
 	if err != nil {
 		return nil, status.Error(codes.Unauthenticated, "Provided Access Token is invalid")
 	}
 
-	return nil, nil
+	return annotations, nil
 }
 
 // New returns the HubSpot connector.

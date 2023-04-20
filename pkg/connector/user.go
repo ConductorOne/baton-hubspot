@@ -58,7 +58,7 @@ func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 		return nil, "", nil, err
 	}
 
-	users, nextToken, err := u.client.GetUsers(
+	users, nextToken, annotations, err := u.client.GetUsers(
 		ctx,
 		hubspot.GetUsersVars{Limit: ResourcesPageSize, After: bag.PageToken()},
 	)
@@ -83,7 +83,7 @@ func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 		rv = append(rv, ur)
 	}
 
-	return rv, pageToken, nil, nil
+	return rv, pageToken, annotations, nil
 }
 
 func (u *userResourceType) Entitlements(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {

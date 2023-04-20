@@ -58,7 +58,7 @@ func (t *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ 
 		return nil, "", nil, nil
 	}
 
-	teams, err := t.client.GetTeams(ctx)
+	teams, annotations, err := t.client.GetTeams(ctx)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to list teams: %w", err)
 	}
@@ -66,14 +66,16 @@ func (t *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ 
 	var rv []*v2.Resource
 	for _, team := range teams {
 		teamCopy := team
+
 		tResource, err := teamResource(ctx, &teamCopy, parentId)
 		if err != nil {
 			return nil, "", nil, err
 		}
+
 		rv = append(rv, tResource)
 	}
 
-	return rv, "", nil, nil
+	return rv, "", annotations, nil
 }
 
 func (t *teamResourceType) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
@@ -110,7 +112,7 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 	// create membership grants
 	var rv []*v2.Grant
 	for _, id := range userIds {
-		user, err := t.client.GetUser(ctx, id)
+		user, _, err := t.client.GetUser(ctx, id)
 		if err != nil {
 			return nil, "", nil, err
 		}
