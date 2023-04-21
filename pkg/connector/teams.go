@@ -27,15 +27,19 @@ func (t *teamResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 
 // Create a new connector resource for an HubSpot Team.
 func teamResource(ctx context.Context, team *hubspot.Team, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
-	userIds := make([]string, len(team.UserIds)+len(team.SecondaryUserIds))
-
-	copy(userIds, team.UserIds)
-	copy(userIds, team.SecondaryUserIds)
-
+	userIdsTotal := len(team.UserIds) + len(team.SecondaryUserIds)
 	profile := map[string]interface{}{
-		"team_id":    team.Id,
-		"team_name":  team.Name,
-		"team_users": strings.Join(userIds, ","),
+		"team_id":   team.Id,
+		"team_name": team.Name,
+	}
+
+	if userIdsTotal > 0 {
+		userIds := make([]string, userIdsTotal)
+
+		copy(userIds, team.UserIds)
+		copy(userIds, team.SecondaryUserIds)
+
+		profile["team_users"] = strings.Join(userIds, ",")
 	}
 
 	resource, err := rs.NewGroupResource(
@@ -104,7 +108,7 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 
 	userIdsString, ok := rs.GetProfileStringValue(teamTrait.Profile, "team_users")
 	if !ok {
-		return nil, "", nil, fmt.Errorf("error fetching user ids from team profile")
+		return nil, "", nil, nil
 	}
 
 	userIds := strings.Split(userIdsString, ",")
