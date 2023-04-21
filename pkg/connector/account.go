@@ -40,6 +40,7 @@ func accountResource(ctx context.Context, account *hubspot.Account, parentResour
 		rs.WithAnnotation(
 			&v2.ChildResourceType{ResourceTypeId: resourceTypeUser.Id},
 			&v2.ChildResourceType{ResourceTypeId: resourceTypeTeam.Id},
+			&v2.ChildResourceType{ResourceTypeId: resourceTypeRole.Id},
 		),
 	)
 
@@ -68,41 +69,25 @@ func (acc *accountResourceType) List(ctx context.Context, parentId *v2.ResourceI
 }
 
 func (acc *accountResourceType) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	// fetch all available user roles
-	roles, annotations, _ := acc.client.GetRoles(ctx)
-	if roles == nil {
-		// do not return user entitlements when account does not support roles
-		return nil, "", annotations, nil
-	}
-
 	var rv []*v2.Entitlement
 
-	for _, role := range roles {
-		assignmentOptions := []ent.EntitlementOption{
-			ent.WithGrantableTo(resourceTypeUser),
-			ent.WithDisplayName(fmt.Sprintf("%s Acc %s", resource.DisplayName, titleCaser.String(role.Name))),
-			ent.WithDescription(fmt.Sprintf("Account %s role in HubSpot", resource.DisplayName)),
-		}
-
-		// create the entitlement
-		rv = append(rv, ent.NewPermissionEntitlement(
-			resource,
-			role.Name,
-			assignmentOptions...,
-		))
+	assignmentOptions := []ent.EntitlementOption{
+		ent.WithGrantableTo(resourceTypeUser),
+		ent.WithDisplayName(fmt.Sprintf("%s Acc %s", resource.DisplayName, titleCaser.String(memberEntitlement))),
+		ent.WithDescription(fmt.Sprintf("Account %s role in HubSpot", resource.DisplayName)),
 	}
 
-	return rv, "", annotations, nil
+	// create the membership entitlement
+	rv = append(rv, ent.NewAssignmentEntitlement(
+		resource,
+		memberEntitlement,
+		assignmentOptions...,
+	))
+
+	return rv, "", nil, nil
 }
 
 func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	// fetch all available user roles
-	roles, _, _ := acc.client.GetRoles(ctx)
-	if roles == nil {
-		// do not return user grants when account does not support roles
-		return nil, "", nil, nil
-	}
-
 	// parse the roleIds from the users
 	bag, err := parsePageToken(token.Token, &v2.ResourceId{ResourceType: resourceTypeUser.Id})
 	if err != nil {
@@ -124,27 +109,20 @@ func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resourc
 
 	var rv []*v2.Grant
 	for _, user := range users {
-		for _, roleId := range user.RoleIds {
-			role, err := findRole(roleId, roles)
-			if err != nil {
-				continue
-			}
-
-			userCopy := user
-			u, err := userResource(ctx, &userCopy, nil)
-			if err != nil {
-				return nil, "", nil, err
-			}
-
-			rv = append(
-				rv,
-				grant.NewGrant(
-					resource,
-					role.Name,
-					u.Id,
-				),
-			)
+		userCopy := user
+		u, err := userResource(ctx, &userCopy, nil)
+		if err != nil {
+			return nil, "", nil, err
 		}
+
+		rv = append(
+			rv,
+			grant.NewGrant(
+				resource,
+				memberEntitlement,
+				u.Id,
+			),
+		)
 	}
 
 	return rv, pageToken, annotations, nil

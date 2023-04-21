@@ -35,6 +35,13 @@ var (
 			v2.ResourceType_TRAIT_APP,
 		},
 	}
+	resourceTypeRole = &v2.ResourceType{
+		Id:          "role",
+		DisplayName: "Role",
+		Traits: []v2.ResourceType_Trait{
+			v2.ResourceType_TRAIT_ROLE,
+		},
+	}
 )
 
 type HubSpot struct {
@@ -46,6 +53,7 @@ func (hs *HubSpot) ResourceSyncers(ctx context.Context) []connectorbuilder.Resou
 		accountBuilder(hs.client),
 		teamBuilder(hs.client),
 		userBuilder(hs.client),
+		roleBuilder(hs.client),
 	}
 }
 
