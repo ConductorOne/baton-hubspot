@@ -1,9 +1,11 @@
 package hubspot
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,6 +20,7 @@ import (
 
 const BaseURL = "https://api.hubapi.com/"
 const UsersBaseURL = BaseURL + "settings/v3/users"
+const UserBaseURL = BaseURL + "settings/v3/users/%s"
 const TeamsBaseURL = BaseURL + "settings/v3/users/teams"
 const RolesBaseURL = BaseURL + "settings/v3/users/roles"
 const AccountBaseURL = BaseURL + "account-info/v3/details"
@@ -71,7 +74,7 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 	queryParams := setupPaginationQuery(url.Values{}, getUsersVars.Limit, getUsersVars.After)
 	var userResponse UsersResponse
 
-	annos, err := c.doRequest(
+	annos, err := c.get(
 		ctx,
 		UsersBaseURL,
 		&userResponse,
@@ -92,7 +95,7 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 // GetTeams returns all teams for a single account.
 func (c *Client) GetTeams(ctx context.Context) ([]Team, annotations.Annotations, error) {
 	var teamResponse TeamsResponse
-	annos, err := c.doRequest(
+	annos, err := c.get(
 		ctx,
 		TeamsBaseURL,
 		&teamResponse,
@@ -109,7 +112,7 @@ func (c *Client) GetTeams(ctx context.Context) ([]Team, annotations.Annotations,
 // GetAccount returns information about single account.
 func (c *Client) GetAccount(ctx context.Context) (Account, annotations.Annotations, error) {
 	var accountResponse Account
-	annos, err := c.doRequest(
+	annos, err := c.get(
 		ctx,
 		AccountBaseURL,
 		&accountResponse,
@@ -125,12 +128,10 @@ func (c *Client) GetAccount(ctx context.Context) (Account, annotations.Annotatio
 
 // GetUser returns information about a single user.
 func (c *Client) GetUser(ctx context.Context, userId string) (User, annotations.Annotations, error) {
-	url := fmt.Sprint(UsersBaseURL, "/", userId)
-
 	var userResponse User
-	annos, err := c.doRequest(
+	annos, err := c.get(
 		ctx,
-		url,
+		fmt.Sprintf(UserBaseURL, userId),
 		&userResponse,
 		nil,
 	)
@@ -144,8 +145,7 @@ func (c *Client) GetUser(ctx context.Context, userId string) (User, annotations.
 // GetRoles returns all roles under a single account.
 func (c *Client) GetRoles(ctx context.Context) ([]Role, annotations.Annotations, error) {
 	var rolesResponse RolesResponse
-	annos, err := c.doRequest(ctx, RolesBaseURL, &rolesResponse, nil)
-
+	annos, err := c.get(ctx, RolesBaseURL, &rolesResponse, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -153,8 +153,55 @@ func (c *Client) GetRoles(ctx context.Context) ([]Role, annotations.Annotations,
 	return rolesResponse.Results, annos, nil
 }
 
-func (c *Client) doRequest(ctx context.Context, url string, resourceResponse interface{}, queryParams url.Values) (annotations.Annotations, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+type UpdateUserPayload struct {
+	RoleId           string   `json:"roleId,omitempty"`
+	PrimaryTeamId    string   `json:"primaryTeamId,omitempty"`
+	SecondaryTeamIds []string `json:"secondaryTeamIds,omitempty"`
+}
+
+// UpdateUser updates information about provided user.
+func (c *Client) UpdateUser(ctx context.Context, userId string, payload *UpdateUserPayload) (annotations.Annotations, error) {
+	annos, err := c.put(
+		ctx,
+		fmt.Sprintf(UserBaseURL, userId),
+		payload,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return annos, nil
+}
+
+func (c *Client) get(ctx context.Context, url string, resourceResponse interface{}, queryParams url.Values) (annotations.Annotations, error) {
+	return c.doRequest(ctx, url, http.MethodGet, nil, resourceResponse, queryParams)
+}
+
+func (c *Client) put(ctx context.Context, url string, data interface{}, resourceResponse interface{}) (annotations.Annotations, error) {
+	return c.doRequest(ctx, url, http.MethodPut, data, resourceResponse, nil)
+}
+
+func (c *Client) doRequest(
+	ctx context.Context,
+	urlAddress string,
+	method string,
+	data interface{},
+	resourceResponse interface{},
+	queryParams url.Values,
+) (annotations.Annotations, error) {
+	var body io.Reader
+
+	if data != nil {
+		jsonBody, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+
+		body = bytes.NewBuffer(jsonBody)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, urlAddress, body)
 	if err != nil {
 		return nil, err
 	}
@@ -163,8 +210,9 @@ func (c *Client) doRequest(ctx context.Context, url string, resourceResponse int
 		req.URL.RawQuery = queryParams.Encode()
 	}
 
-	req.Header.Add("authorization", fmt.Sprint("Bearer ", c.accessToken))
-	req.Header.Add("accept", "application/json")
+	req.Header.Add("Authorization", fmt.Sprint("Bearer ", c.accessToken))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
 
 	rawResponse, err := c.httpClient.Do(req)
 	if err != nil {

@@ -11,6 +11,8 @@ import (
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 )
 
 type roleResourceType struct {
@@ -140,6 +142,65 @@ func (r *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 	}
 
 	return rv, pageToken, annotations, nil
+}
+
+func (r *roleResourceType) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) (annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
+
+	if principal.Id.ResourceType != resourceTypeUser.Id {
+		l.Warn(
+			"hubspot-connector: only users can be granted role membership",
+			zap.String("principal_id", principal.Id.Resource),
+			zap.String("principal_type", principal.Id.ResourceType),
+		)
+
+		return nil, fmt.Errorf("hubspot-connector: only users can be granted role membership")
+	}
+
+	roleId := entitlement.Resource.Id.Resource
+
+	// no need to check current user role - only rewriting is supported
+	// grant role membership
+	annos, err := r.client.UpdateUser(
+		ctx,
+		principal.Id.Resource,
+		&hubspot.UpdateUserPayload{
+			RoleId: roleId,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
+	}
+
+	return annos, nil
+}
+
+func (r *roleResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
+	l := ctxzap.Extract(ctx)
+
+	principal := grant.Principal
+
+	if principal.Id.ResourceType != resourceTypeUser.Id {
+		l.Warn(
+			"hubspot-connector: only users can have role membership revoked",
+			zap.String("principal_id", principal.Id.Resource),
+			zap.String("principal_type", principal.Id.ResourceType),
+		)
+
+		return nil, fmt.Errorf("hubspot-connector: only users can have role membership revoked")
+	}
+
+	// revoke role membership
+	annos, err := r.client.UpdateUser(
+		ctx,
+		principal.Id.Resource,
+		&hubspot.UpdateUserPayload{},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
+	}
+
+	return annos, nil
 }
 
 func roleBuilder(client *hubspot.Client) *roleResourceType {
