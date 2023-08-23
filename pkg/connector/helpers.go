@@ -49,3 +49,25 @@ func filterUsersByRole(id string, users []hubspot.User) []hubspot.User {
 
 	return filteredUsers
 }
+
+func containsTeam(tIds []string, targetTeam string) bool {
+	for _, id := range tIds {
+		if id == targetTeam {
+			return true
+		}
+	}
+
+	return false
+}
+
+func removeTeam(tIds []string, targetTeam string) []string {
+	tv := make([]string, 0, len(tIds))
+
+	for _, id := range tIds {
+		if id != targetTeam {
+			tv = append(tv, id)
+		}
+	}
+
+	return tv
+}

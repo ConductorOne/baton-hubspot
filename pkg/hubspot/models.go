@@ -6,9 +6,10 @@ type BaseResource struct {
 
 type User struct {
 	BaseResource
-	Email   string   `json:"email"`
-	RoleIds []string `json:"roleIds"`
-	TeamId  string   `json:"primaryTeamId"`
+	Email            string   `json:"email"`
+	RoleIds          []string `json:"roleIds"`
+	TeamId           string   `json:"primaryTeamId"`
+	SecondaryTeamIds []string `json:"secondaryTeamIds"`
 }
 
 type Team struct {

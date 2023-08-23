@@ -15,6 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const roleMembership = "member"
+
 type roleResourceType struct {
 	resourceType *v2.ResourceType
 	client       *hubspot.Client
@@ -89,7 +91,7 @@ func (r *roleResourceType) Entitlements(ctx context.Context, resource *v2.Resour
 	// create membership entitlement
 	rv = append(rv, ent.NewAssignmentEntitlement(
 		resource,
-		memberEntitlement,
+		roleMembership,
 		assignmentOptions...,
 	))
 
@@ -136,7 +138,7 @@ func (r *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 
 		rv = append(rv, grant.NewGrant(
 			resource,
-			memberEntitlement,
+			roleMembership,
 			ur.Id,
 		))
 	}

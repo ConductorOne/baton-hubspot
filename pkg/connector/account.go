@@ -13,6 +13,8 @@ import (
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 )
 
+const accountMembership = "member"
+
 type accountResourceType struct {
 	resourceType *v2.ResourceType
 	client       *hubspot.Client
@@ -73,14 +75,14 @@ func (acc *accountResourceType) Entitlements(ctx context.Context, resource *v2.R
 
 	assignmentOptions := []ent.EntitlementOption{
 		ent.WithGrantableTo(resourceTypeUser),
-		ent.WithDisplayName(fmt.Sprintf("%s Acc %s", resource.DisplayName, titleCaser.String(memberEntitlement))),
+		ent.WithDisplayName(fmt.Sprintf("%s Acc %s", resource.DisplayName, titleCaser.String(accountMembership))),
 		ent.WithDescription(fmt.Sprintf("Account %s role in HubSpot", resource.DisplayName)),
 	}
 
 	// create the membership entitlement
 	rv = append(rv, ent.NewAssignmentEntitlement(
 		resource,
-		memberEntitlement,
+		accountMembership,
 		assignmentOptions...,
 	))
 
@@ -119,7 +121,7 @@ func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resourc
 			rv,
 			grant.NewGrant(
 				resource,
-				memberEntitlement,
+				accountMembership,
 				u.Id,
 			),
 		)
