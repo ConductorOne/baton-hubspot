@@ -28,7 +28,7 @@ func (r *roleResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 
 // Create a new connector resource for an HubSpot user.
 func roleResource(ctx context.Context, role *hubspot.Role, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
-	displayName := titleCaser.String(role.Name)
+	displayName := titleCase(role.Name)
 	profile := map[string]interface{}{
 		"role_id":   role.Id,
 		"role_name": displayName,

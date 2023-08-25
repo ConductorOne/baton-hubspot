@@ -75,7 +75,7 @@ func (acc *accountResourceType) Entitlements(ctx context.Context, resource *v2.R
 
 	assignmentOptions := []ent.EntitlementOption{
 		ent.WithGrantableTo(resourceTypeUser),
-		ent.WithDisplayName(fmt.Sprintf("%s Acc %s", resource.DisplayName, titleCaser.String(accountMembership))),
+		ent.WithDisplayName(fmt.Sprintf("%s Acc %s", resource.DisplayName, titleCase(accountMembership))),
 		ent.WithDescription(fmt.Sprintf("Account %s role in HubSpot", resource.DisplayName)),
 	}
 
