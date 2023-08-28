@@ -32,9 +32,6 @@ var (
 	resourceTypeAccount = &v2.ResourceType{
 		Id:          "account",
 		DisplayName: "Account",
-		Traits: []v2.ResourceType_Trait{
-			v2.ResourceType_TRAIT_APP,
-		},
 	}
 	resourceTypeRole = &v2.ResourceType{
 		Id:          "role",

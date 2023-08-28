@@ -26,18 +26,10 @@ func (acc *accountResourceType) ResourceType(_ context.Context) *v2.ResourceType
 
 // Create a new connector resource for an HubSpot account.
 func accountResource(ctx context.Context, account *hubspot.Account, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
-	profile := map[string]interface{}{
-		"account_id":   account.Id,
-		"account_type": account.Type,
-	}
-
-	resource, err := rs.NewAppResource(
+	resource, err := rs.NewResource(
 		fmt.Sprint(account.Id),
 		resourceTypeAccount,
 		account.Id,
-		[]rs.AppTraitOption{
-			rs.WithAppProfile(profile),
-		},
 		rs.WithParentResourceID(parentResourceID),
 		rs.WithAnnotation(
 			&v2.ChildResourceType{ResourceTypeId: resourceTypeUser.Id},
