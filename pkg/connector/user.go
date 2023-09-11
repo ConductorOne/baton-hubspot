@@ -30,7 +30,7 @@ func userResource(ctx context.Context, user *hubspot.User, parentResourceID *v2.
 	userTraitOptions := []rs.UserTraitOption{
 		rs.WithUserProfile(profile),
 		rs.WithEmail(user.Email, true),
-		rs.WithStatus(v2.UserTrait_Status_STATUS_UNSPECIFIED),
+		rs.WithStatus(v2.UserTrait_Status_STATUS_ENABLED),
 	}
 
 	resource, err := rs.NewUserResource(
