@@ -44,7 +44,7 @@ func filterUsersByRole(id string, users []hubspot.User) []hubspot.User {
 	var filteredUsers []hubspot.User
 
 	for _, user := range users {
-		for _, roleId := range user.RoleIds {
+		for _, roleId := range user.RoleIDs {
 			if roleId == id {
 				filteredUsers = append(filteredUsers, user)
 				break
@@ -67,8 +67,8 @@ func filterUsersBySuperAdmin(users []hubspot.User) []hubspot.User {
 	return superAdmins
 }
 
-func containsTeam(tIds []string, targetTeam string) bool {
-	for _, id := range tIds {
+func containsTeam(tIDs []string, targetTeam string) bool {
+	for _, id := range tIDs {
 		if id == targetTeam {
 			return true
 		}
@@ -77,10 +77,10 @@ func containsTeam(tIds []string, targetTeam string) bool {
 	return false
 }
 
-func removeTeam(tIds []string, targetTeam string) []string {
-	tv := make([]string, 0, len(tIds))
+func removeTeam(tIDs []string, targetTeam string) []string {
+	tv := make([]string, 0, len(tIDs))
 
-	for _, id := range tIds {
+	for _, id := range tIDs {
 		if id != targetTeam {
 			tv = append(tv, id)
 		}

@@ -82,7 +82,7 @@ func (acc *accountResourceType) Entitlements(ctx context.Context, resource *v2.R
 }
 
 func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	// parse the roleIds from the users
+	// parse the roleIDs from the users
 	bag, err := parsePageToken(token.Token, &v2.ResourceId{ResourceType: resourceTypeUser.Id})
 	if err != nil {
 		return nil, "", nil, err

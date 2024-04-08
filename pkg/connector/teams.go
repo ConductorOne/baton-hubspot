@@ -37,12 +37,12 @@ func teamResource(ctx context.Context, team *hubspot.Team, parentResourceID *v2.
 		"team_name": team.Name,
 	}
 
-	if len(team.UserIds) > 0 {
-		profile["team_primary_users"] = strings.Join(team.UserIds, ",")
+	if len(team.UserIDs) > 0 {
+		profile["team_primary_users"] = strings.Join(team.UserIDs, ",")
 	}
 
-	if len(team.SecondaryUserIds) > 0 {
-		profile["team_secondary_users"] = strings.Join(team.SecondaryUserIds, ",")
+	if len(team.SecondaryUserIDs) > 0 {
+		profile["team_secondary_users"] = strings.Join(team.SecondaryUserIDs, ",")
 	}
 
 	resource, err := rs.NewGroupResource(
@@ -122,21 +122,21 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 		return nil, "", nil, err
 	}
 
-	var primaryUserIds, secondaryUserIds []string
+	var primaryUserIDs, secondaryUserIDs []string
 
-	primaryUserIdsString, ok := rs.GetProfileStringValue(teamTrait.Profile, "team_primary_users")
+	primaryUserIDsString, ok := rs.GetProfileStringValue(teamTrait.Profile, "team_primary_users")
 	if ok {
-		primaryUserIds = strings.Split(primaryUserIdsString, ",")
+		primaryUserIDs = strings.Split(primaryUserIDsString, ",")
 	}
 
-	secondaryUserIdsString, ok := rs.GetProfileStringValue(teamTrait.Profile, "team_secondary_users")
+	secondaryUserIDsString, ok := rs.GetProfileStringValue(teamTrait.Profile, "team_secondary_users")
 	if ok {
-		secondaryUserIds = strings.Split(secondaryUserIdsString, ",")
+		secondaryUserIDs = strings.Split(secondaryUserIDsString, ",")
 	}
 
 	// create membership grants
 	var rv []*v2.Grant
-	for _, id := range primaryUserIds {
+	for _, id := range primaryUserIDs {
 		user, _, err := t.client.GetUser(ctx, id)
 		if err != nil {
 			return nil, "", nil, err
@@ -158,7 +158,7 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 		)
 	}
 
-	for _, id := range secondaryUserIds {
+	for _, id := range secondaryUserIDs {
 		user, _, err := t.client.GetUser(ctx, id)
 		if err != nil {
 			return nil, "", nil, err
@@ -207,8 +207,8 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 
 	// there is only one role supported so far
 	var roleId string
-	if len(user.RoleIds) != 0 {
-		roleId = user.RoleIds[0]
+	if len(user.RoleIDs) != 0 {
+		roleId = user.RoleIDs[0]
 	}
 
 	var annos annotations.Annotations
@@ -229,7 +229,7 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 			return nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
 		}
 	} else if entitlementId == secondaryMemberEntitlement {
-		if containsTeam(user.SecondaryTeamIds, teamId) {
+		if containsTeam(user.SecondaryTeamIDs, teamId) {
 			return nil, fmt.Errorf("hubspot-connector: user is already a secondary member of team %s", teamId)
 		}
 
@@ -238,7 +238,7 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 			principal.Id.Resource,
 			&hubspot.UpdateUserPayload{
 				RoleId:           roleId,
-				SecondaryTeamIds: append(user.SecondaryTeamIds, teamId),
+				SecondaryTeamIDs: append(user.SecondaryTeamIDs, teamId),
 			},
 		)
 		if err != nil {
@@ -274,8 +274,8 @@ func (t *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 	}
 
 	var roleId string
-	if len(user.RoleIds) != 0 {
-		roleId = user.RoleIds[0]
+	if len(user.RoleIDs) != 0 {
+		roleId = user.RoleIDs[0]
 	}
 
 	var annos annotations.Annotations
@@ -295,17 +295,17 @@ func (t *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 			return nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
 		}
 	} else if entitlementId == secondaryMemberEntitlement {
-		if !containsTeam(user.SecondaryTeamIds, teamId) {
+		if !containsTeam(user.SecondaryTeamIDs, teamId) {
 			return nil, fmt.Errorf("hubspot-connector: user is not a secondary member of team %s", teamId)
 		}
 
-		updatedTeams := removeTeam(user.SecondaryTeamIds, teamId)
+		updatedTeams := removeTeam(user.SecondaryTeamIDs, teamId)
 		annos, err = t.client.UpdateUser(
 			ctx,
 			principal.Id.Resource,
 			&hubspot.UpdateUserPayload{
 				RoleId:           roleId,
-				SecondaryTeamIds: updatedTeams,
+				SecondaryTeamIDs: updatedTeams,
 			},
 		)
 		if err != nil {
