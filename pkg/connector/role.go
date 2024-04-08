@@ -15,7 +15,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const roleMembership = "member"
+const (
+	roleMembership = "member"
+	superAdminRole = "super_admin"
+)
 
 type roleResourceType struct {
 	resourceType *v2.ResourceType
@@ -27,7 +30,7 @@ func (r *roleResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 }
 
 // Create a new connector resource for an HubSpot user.
-func roleResource(ctx context.Context, role *hubspot.Role, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
+func roleResource(role *hubspot.Role, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
 	displayName := titleCase(role.Name)
 	profile := map[string]interface{}{
 		"role_id":   role.Id,
@@ -68,13 +71,22 @@ func (r *roleResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ 
 	for _, role := range roles {
 		roleCopy := role
 
-		rr, err := roleResource(ctx, &roleCopy, parentId)
+		rr, err := roleResource(&roleCopy, parentId)
 		if err != nil {
 			return nil, "", nil, err
 		}
 
 		rv = append(rv, rr)
 	}
+
+	// add concrete super admin role
+	saRole := hubspot.NewRole(superAdminRole, "Super Admin")
+	sar, err := roleResource(saRole, parentId)
+	if err != nil {
+		return nil, "", nil, err
+	}
+
+	rv = append(rv, sar)
 
 	return rv, "", annotations, nil
 }
@@ -129,7 +141,14 @@ func (r *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 	}
 
 	var rv []*v2.Grant
-	for _, user := range filterUsersByRole(roleId, users) {
+	var filteredUsers []hubspot.User
+	if roleId == superAdminRole {
+		filteredUsers = filterUsersBySuperAdmin(users)
+	} else {
+		filteredUsers = filterUsersByRole(roleId, users)
+	}
+
+	for _, user := range filteredUsers {
 		userCopy := user
 		ur, err := userResource(ctx, &userCopy, nil)
 		if err != nil {

@@ -7,16 +7,17 @@ type BaseResource struct {
 type User struct {
 	BaseResource
 	Email            string   `json:"email"`
-	RoleIds          []string `json:"roleIds"`
+	RoleIDs          []string `json:"roleIds"`
 	TeamId           string   `json:"primaryTeamId"`
-	SecondaryTeamIds []string `json:"secondaryTeamIds"`
+	SecondaryTeamIDs []string `json:"secondaryTeamIds"`
+	SuperAdmin       bool     `json:"superAdmin"`
 }
 
 type Team struct {
 	BaseResource
 	Name             string   `json:"name"`
-	UserIds          []string `json:"userIds"`
-	SecondaryUserIds []string `json:"secondaryUserIds"`
+	UserIDs          []string `json:"userIds"`
+	SecondaryUserIDs []string `json:"secondaryUserIds"`
 }
 
 type Account struct {
@@ -27,6 +28,15 @@ type Account struct {
 type Role struct {
 	BaseResource
 	Name string `json:"name"`
+}
+
+func NewRole(id, name string) *Role {
+	return &Role{
+		BaseResource: BaseResource{
+			Id: id,
+		},
+		Name: name,
+	}
 }
 
 type Page struct {
