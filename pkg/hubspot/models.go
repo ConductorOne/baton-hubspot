@@ -10,6 +10,7 @@ type User struct {
 	RoleIds          []string `json:"roleIds"`
 	TeamId           string   `json:"primaryTeamId"`
 	SecondaryTeamIds []string `json:"secondaryTeamIds"`
+	SuperAdmin       bool     `json:"superAdmin"`
 }
 
 type Team struct {
@@ -27,6 +28,15 @@ type Account struct {
 type Role struct {
 	BaseResource
 	Name string `json:"name"`
+}
+
+func NewRole(id, name string) *Role {
+	return &Role{
+		BaseResource: BaseResource{
+			Id: id,
+		},
+		Name: name,
+	}
 }
 
 type Page struct {

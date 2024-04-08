@@ -55,6 +55,18 @@ func filterUsersByRole(id string, users []hubspot.User) []hubspot.User {
 	return filteredUsers
 }
 
+func filterUsersBySuperAdmin(users []hubspot.User) []hubspot.User {
+	var superAdmins []hubspot.User
+
+	for _, user := range users {
+		if user.SuperAdmin {
+			superAdmins = append(superAdmins, user)
+		}
+	}
+
+	return superAdmins
+}
+
 func containsTeam(tIds []string, targetTeam string) bool {
 	for _, id := range tIds {
 		if id == targetTeam {
