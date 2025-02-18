@@ -25,6 +25,8 @@ const TeamsBaseURL = BaseURL + "settings/v3/users/teams"
 const RolesBaseURL = BaseURL + "settings/v3/users/roles"
 const AccountBaseURL = BaseURL + "account-info/v3/details"
 
+const OwnersBaseURL = BaseURL + "crm/v3/owners"
+
 type Client struct {
 	httpClient  *http.Client
 	accessToken string
@@ -33,6 +35,21 @@ type Client struct {
 type UsersResponse struct {
 	Results []User         `json:"results"`
 	Paging  PaginationData `json:"paging"`
+}
+
+type DeactivatedUsersResponse struct {
+	Results []DeactivatedUser `json:"results"`
+	Paging  PaginationData    `json:"paging"`
+}
+
+type DeactivatedUser struct {
+	Id    string `json:"id"`
+	Email string `json:"email"`
+	// this is null for inactive users
+	UserId *int `json:"userId"`
+	// this is the actual user id
+	UserIdIncludingInactive int  `json:"userIdIncludingInactive"`
+	Archived                bool `json:"archived"`
 }
 
 type GetUsersVars struct {
@@ -90,6 +107,33 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 	}
 
 	return userResponse.Results, "", annos, nil
+}
+
+// GetUsers returns all users for a single workspace.
+func (c *Client) IsDeactivatedUser(ctx context.Context, email string) (bool, error) {
+	queryParams := url.Values{}
+
+	queryParams.Add("archived", "true")
+	queryParams.Add("limit", "1")
+	queryParams.Add("email", email)
+	var userResponse DeactivatedUsersResponse
+
+	_, err := c.get(
+		ctx,
+		OwnersBaseURL,
+		&userResponse,
+		queryParams,
+	)
+
+	if err != nil {
+		return false, err
+	}
+
+	if len(userResponse.Results) == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // GetTeams returns all teams for a single account.

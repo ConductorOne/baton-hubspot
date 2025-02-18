@@ -104,7 +104,7 @@ func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resourc
 	var rv []*v2.Grant
 	for _, user := range users {
 		userCopy := user
-		u, err := userResource(ctx, &userCopy, nil)
+		u, err := userResource(ctx, acc.client, &userCopy, nil)
 		if err != nil {
 			return nil, "", nil, err
 		}

@@ -143,7 +143,7 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 		}
 
 		userCopy := user
-		u, err := userResource(ctx, &userCopy, nil)
+		u, err := userResource(ctx, t.client, &userCopy, nil)
 		if err != nil {
 			return nil, "", nil, err
 		}
@@ -165,7 +165,7 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 		}
 
 		userCopy := user
-		u, err := userResource(ctx, &userCopy, nil)
+		u, err := userResource(ctx, t.client, &userCopy, nil)
 		if err != nil {
 			return nil, "", nil, err
 		}

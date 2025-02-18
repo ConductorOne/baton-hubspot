@@ -150,7 +150,7 @@ func (r *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 
 	for _, user := range filteredUsers {
 		userCopy := user
-		ur, err := userResource(ctx, &userCopy, nil)
+		ur, err := userResource(ctx, r.client, &userCopy, nil)
 		if err != nil {
 			return nil, "", nil, err
 		}

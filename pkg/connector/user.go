@@ -9,6 +9,7 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
 
 type userResourceType struct {
@@ -21,16 +22,25 @@ func (u *userResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 }
 
 // Create a new connector resource for an HubSpot user.
-func userResource(ctx context.Context, user *hubspot.User, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
+func userResource(ctx context.Context, client *hubspot.Client, user *hubspot.User, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
 	profile := map[string]interface{}{
 		"login":   user.Email,
 		"user_id": user.Id,
 	}
 
+	status := v2.UserTrait_Status_STATUS_ENABLED
+	isDeactivatedUser, err := client.IsDeactivatedUser(ctx, user.Email)
+	if err != nil {
+		ctxzap.Extract(ctx).Sugar().Errorf("hubspot-connector: failed to check if user %s is deactivated: %v", user.Email, err)
+	}
+
+	if isDeactivatedUser {
+		status = v2.UserTrait_Status_STATUS_DISABLED
+	}
 	userTraitOptions := []rs.UserTraitOption{
 		rs.WithUserProfile(profile),
 		rs.WithEmail(user.Email, true),
-		rs.WithStatus(v2.UserTrait_Status_STATUS_ENABLED),
+		rs.WithStatus(status),
 	}
 
 	resource, err := rs.NewUserResource(
@@ -75,7 +85,7 @@ func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 	for _, user := range users {
 		userCopy := user
 
-		ur, err := userResource(ctx, &userCopy, parentId)
+		ur, err := userResource(ctx, u.client, &userCopy, parentId)
 		if err != nil {
 			return nil, "", nil, err
 		}
