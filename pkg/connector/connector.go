@@ -43,14 +43,15 @@ var (
 )
 
 type HubSpot struct {
-	client *hubspot.Client
+	client     *hubspot.Client
+	userStatus bool
 }
 
 func (hs *HubSpot) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
 		accountBuilder(hs.client),
 		teamBuilder(hs.client),
-		userBuilder(hs.client),
+		userBuilder(hs.client, hs.userStatus),
 		roleBuilder(hs.client),
 	}
 }
@@ -74,7 +75,7 @@ func (hs *HubSpot) Validate(ctx context.Context) (annotations.Annotations, error
 }
 
 // New returns the HubSpot connector.
-func New(ctx context.Context, accessToken string) (*HubSpot, error) {
+func New(ctx context.Context, accessToken string, userStatus bool) (*HubSpot, error) {
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
 
 	if err != nil {
@@ -82,6 +83,7 @@ func New(ctx context.Context, accessToken string) (*HubSpot, error) {
 	}
 
 	return &HubSpot{
-		client: hubspot.NewClient(accessToken, httpClient),
+		client:     hubspot.NewClient(accessToken, httpClient),
+		userStatus: userStatus,
 	}, nil
 }

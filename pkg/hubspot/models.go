@@ -20,6 +20,16 @@ type Team struct {
 	SecondaryUserIDs []string `json:"secondaryUserIds"`
 }
 
+type UserObject struct {
+	BaseResource
+	Properties UserObjectProperties `json:"properties,omitempty"`
+}
+
+type UserObjectProperties struct {
+	UserId      string `json:"hs_internal_user_id,omitempty"`
+	Deactivated string `json:"hs_deactivated,omitempty"`
+}
+
 type Account struct {
 	Id   int    `json:"portalId"`
 	Type string `json:"accountType"`
@@ -40,8 +50,8 @@ func NewRole(id, name string) *Role {
 }
 
 type Page struct {
-	After string `json:"after"`
-	Link  string `json:"link"`
+	After string `json:"after,omitempty"`
+	Link  string `json:"link,omitempty"`
 }
 
 type PaginationData struct {

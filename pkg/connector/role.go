@@ -149,16 +149,11 @@ func (r *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 	}
 
 	for _, user := range filteredUsers {
-		userCopy := user
-		ur, err := userResource(ctx, &userCopy, nil)
-		if err != nil {
-			return nil, "", nil, err
-		}
-
+		userResourceId := getUserResourceId(user.Id)
 		rv = append(rv, grant.NewGrant(
 			resource,
 			roleMembership,
-			ur.Id,
+			userResourceId,
 		))
 	}
 

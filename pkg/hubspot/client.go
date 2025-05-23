@@ -24,6 +24,9 @@ const UserBaseURL = BaseURL + "settings/v3/users/%s"
 const TeamsBaseURL = BaseURL + "settings/v3/users/teams"
 const RolesBaseURL = BaseURL + "settings/v3/users/roles"
 const AccountBaseURL = BaseURL + "account-info/v3/details"
+const SearchUserObjectURL = BaseURL + "crm/v3/objects/users/search"
+const EqualOperator = "EQ"
+const HSInternalUserId = "hs_internal_user_id"
 
 type Client struct {
 	httpClient  *http.Client
@@ -46,6 +49,28 @@ type TeamsResponse struct {
 
 type RolesResponse struct {
 	Results []Role `json:"results"`
+}
+
+type SearchUserObjectResponse struct {
+	Results []UserObject   `json:"results"`
+	Paging  PaginationData `json:"paging"`
+}
+
+type Filters struct {
+	Filters []Filter `json:"filters,omitempty"`
+}
+
+type Filter struct {
+	PropertieName string `json:"propertyName,omitempty"`
+	Operator      string `json:"operator,omitempty"`
+	Value         string `json:"value,omitempty"`
+}
+
+type SearchUserObjectPayload struct {
+	FilterGroups []Filters `json:"filterGroups,omitempty"`
+	Properties   []string  `json:"properties,omitempty"`
+	Limit        int       `json:"limit,omitempty"`
+	After        string    `json:"after,omitempty"`
 }
 
 func NewClient(accessToken string, httpClient *http.Client) *Client {
@@ -174,12 +199,49 @@ func (c *Client) UpdateUser(ctx context.Context, userId string, payload *UpdateU
 	return annos, nil
 }
 
+func (c *Client) GetDeletedUsers(ctx context.Context, pageOptions GetUsersVars) ([]string, string, annotations.Annotations, error) {
+	userFilter := Filter{
+		PropertieName: "hs_deactivated",
+		Operator:      EqualOperator,
+		Value:         "true",
+	}
+	filters := []Filters{{Filters: []Filter{userFilter}}}
+	payload := SearchUserObjectPayload{
+		FilterGroups: filters,
+		Properties:   []string{"hs_deactivated", HSInternalUserId},
+		Limit:        pageOptions.Limit,
+		After:        pageOptions.After,
+	}
+	var res SearchUserObjectResponse
+	annos, err := c.post(
+		ctx,
+		SearchUserObjectURL,
+		payload,
+		&res,
+	)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	var ids []string
+	for _, user := range res.Results {
+		ids = append(ids, user.Properties.UserId)
+	}
+	if (res.Paging != PaginationData{}) {
+		return ids, res.Paging.Next.After, annos, nil
+	}
+	return ids, "", annos, nil
+}
+
 func (c *Client) get(ctx context.Context, url string, resourceResponse interface{}, queryParams url.Values) (annotations.Annotations, error) {
 	return c.doRequest(ctx, url, http.MethodGet, nil, resourceResponse, queryParams)
 }
 
 func (c *Client) put(ctx context.Context, url string, data interface{}, resourceResponse interface{}) (annotations.Annotations, error) {
 	return c.doRequest(ctx, url, http.MethodPut, data, resourceResponse, nil)
+}
+
+func (c *Client) post(ctx context.Context, url string, data interface{}, resourceResponse interface{}) (annotations.Annotations, error) {
+	return c.doRequest(ctx, url, http.MethodPost, data, resourceResponse, nil)
 }
 
 func (c *Client) doRequest(
@@ -222,7 +284,7 @@ func (c *Client) doRequest(
 	defer rawResponse.Body.Close()
 
 	if rawResponse.StatusCode >= 300 {
-		return nil, status.Error(codes.Code(rawResponse.StatusCode), "Request failed")
+		return nil, status.Error(codes.Code(rawResponse.StatusCode), "Request failed") //nolint:gosec // safe conversion: HTTP status code is always in range 0-599
 	}
 
 	if err := json.NewDecoder(rawResponse.Body).Decode(&resourceResponse); err != nil {
@@ -259,10 +321,10 @@ func extractRateLimitData(response *http.Response) (*v2.RateLimitDescription, er
 		}
 	}
 
-	var max int64
+	var maxValue int64
 	maxPayload := response.Header.Get("X-HubSpot-RateLimit-Max")
 	if maxPayload != "" {
-		max, err = strconv.ParseInt(maxPayload, 10, 64)
+		maxValue, err = strconv.ParseInt(maxPayload, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse ratelimit-max: %w", err)
 		}
@@ -281,7 +343,7 @@ func extractRateLimitData(response *http.Response) (*v2.RateLimitDescription, er
 	}
 
 	return &v2.RateLimitDescription{
-		Limit:     max,
+		Limit:     maxValue,
 		Remaining: remaining,
 		ResetAt:   resetAt,
 	}, nil
