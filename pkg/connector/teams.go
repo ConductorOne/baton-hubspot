@@ -31,7 +31,7 @@ func (t *teamResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 }
 
 // Create a new connector resource for an HubSpot Team.
-func teamResource(ctx context.Context, team *hubspot.Team, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
+func teamResource(team *hubspot.Team, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
 	profile := map[string]interface{}{
 		"team_id":   team.Id,
 		"team_name": team.Name,
@@ -74,7 +74,7 @@ func (t *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ 
 	for _, team := range teams {
 		teamCopy := team
 
-		tResource, err := teamResource(ctx, &teamCopy, parentId)
+		tResource, err := teamResource(&teamCopy, parentId)
 		if err != nil {
 			return nil, "", nil, err
 		}
@@ -142,18 +142,13 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 			return nil, "", nil, err
 		}
 
-		userCopy := user
-		u, err := userResource(ctx, &userCopy, nil)
-		if err != nil {
-			return nil, "", nil, err
-		}
-
+		userResourceId := getUserResourceId(user.Id)
 		rv = append(
 			rv,
 			grant.NewGrant(
 				resource,
 				primaryMemberEntitlement,
-				u.Id,
+				userResourceId,
 			),
 		)
 	}
@@ -163,19 +158,13 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 		if err != nil {
 			return nil, "", nil, err
 		}
-
-		userCopy := user
-		u, err := userResource(ctx, &userCopy, nil)
-		if err != nil {
-			return nil, "", nil, err
-		}
-
+		userResourceId := getUserResourceId(user.Id)
 		rv = append(
 			rv,
 			grant.NewGrant(
 				resource,
 				secondaryMemberEntitlement,
-				u.Id,
+				userResourceId,
 			),
 		)
 	}
@@ -212,7 +201,8 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 	}
 
 	var annos annotations.Annotations
-	if entitlementId == primaryMemberEntitlement {
+	switch entitlementId {
+	case primaryMemberEntitlement:
 		if user.TeamId == teamId {
 			return nil, fmt.Errorf("hubspot-connector: user is already a primary member of team %s", teamId)
 		}
@@ -228,7 +218,7 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 		if err != nil {
 			return nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
 		}
-	} else if entitlementId == secondaryMemberEntitlement {
+	case secondaryMemberEntitlement:
 		if containsTeam(user.SecondaryTeamIDs, teamId) {
 			return nil, fmt.Errorf("hubspot-connector: user is already a secondary member of team %s", teamId)
 		}
@@ -279,7 +269,8 @@ func (t *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 	}
 
 	var annos annotations.Annotations
-	if entitlementId == primaryMemberEntitlement {
+	switch entitlementId {
+	case primaryMemberEntitlement:
 		if user.TeamId != teamId {
 			return nil, fmt.Errorf("hubspot-connector: user is not a primary member of team %s", teamId)
 		}
@@ -294,7 +285,7 @@ func (t *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 		if err != nil {
 			return nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
 		}
-	} else if entitlementId == secondaryMemberEntitlement {
+	case secondaryMemberEntitlement:
 		if !containsTeam(user.SecondaryTeamIDs, teamId) {
 			return nil, fmt.Errorf("hubspot-connector: user is not a secondary member of team %s", teamId)
 		}

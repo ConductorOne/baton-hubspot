@@ -1,6 +1,8 @@
 package connector
 
 import (
+	"encoding/json"
+
 	"github.com/conductorone/baton-hubspot/pkg/hubspot"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -10,6 +12,11 @@ import (
 )
 
 var ResourcesPageSize = 50
+
+type UsersPaginationToken struct {
+	Page string `json:"page"`
+	Type string `json:"type"`
+}
 
 func titleCase(s string) string {
 	titleCaser := cases.Title(language.English)
@@ -38,6 +45,32 @@ func parsePageToken(i string, resourceID *v2.ResourceId) (*pagination.Bag, error
 	}
 
 	return b, nil
+}
+
+func parseUserPaginationToken(token UsersPaginationToken, bag *pagination.Bag) (string, error) {
+	jsonToken, err := json.Marshal(token)
+	if err != nil {
+		return "", err
+	}
+	tokenStr := string(jsonToken)
+	pageToken, err := bag.NextToken(tokenStr)
+	if err != nil {
+		return "", err
+	}
+
+	return pageToken, nil
+}
+
+func unmarshalUserPageToken(stringToken string) (*UsersPaginationToken, error) {
+	var token UsersPaginationToken
+	if stringToken == "" {
+		return &token, nil
+	}
+	err := json.Unmarshal([]byte(stringToken), &token)
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
 }
 
 func filterUsersByRole(id string, users []hubspot.User) []hubspot.User {
@@ -87,4 +120,11 @@ func removeTeam(tIDs []string, targetTeam string) []string {
 	}
 
 	return tv
+}
+
+func getUserResourceId(userId string) *v2.ResourceId {
+	return &v2.ResourceId{
+		ResourceType: resourceTypeUser.Id,
+		Resource:     userId,
+	}
 }

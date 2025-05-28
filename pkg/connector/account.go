@@ -25,7 +25,7 @@ func (acc *accountResourceType) ResourceType(_ context.Context) *v2.ResourceType
 }
 
 // Create a new connector resource for an HubSpot account.
-func accountResource(ctx context.Context, account *hubspot.Account, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
+func accountResource(_ context.Context, account *hubspot.Account, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
 	resource, err := rs.NewResource(
 		fmt.Sprint(account.Id),
 		resourceTypeAccount,
@@ -103,18 +103,13 @@ func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resourc
 
 	var rv []*v2.Grant
 	for _, user := range users {
-		userCopy := user
-		u, err := userResource(ctx, &userCopy, nil)
-		if err != nil {
-			return nil, "", nil, err
-		}
-
+		userResourceId := getUserResourceId(user.Id)
 		rv = append(
 			rv,
 			grant.NewGrant(
 				resource,
 				accountMembership,
-				u.Id,
+				userResourceId,
 			),
 		)
 	}
