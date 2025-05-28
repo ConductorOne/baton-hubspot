@@ -1,31 +1,32 @@
 package main
 
 import (
-	"context"
-	"fmt"
+	"github.com/conductorone/baton-sdk/pkg/field"
 
-	"github.com/conductorone/baton-sdk/pkg/cli"
-	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-// config defines the external configuration required for the connector to run.
-type config struct {
-	cli.BaseConfig `mapstructure:",squash"` // Puts the base config options in the same place as the connector options
-	AccessToken    string                   `mapstructure:"token"`
-	UserStatus     bool                     `mapstructure:"user-status"`
-}
+var (
+	TokenField = field.StringField(
+		"token",
+		field.WithDescription("The HubSpot personal access token used to connect to the HubSpot API. ($BATON_TOKEN)"),
+		field.WithRequired(true),
+	)
+	UserStatusField = field.BoolField(
+		"user-status",
+		field.WithDescription("Enables user status syncing. WARNING: Additional token scope needed: 'crm.objects.users.read'. ($BATON_USER_STATUS)"),
+		field.WithDefaultValue(false),
+	)
+	// ConfigurationFields defines the external configuration required for the
+	// connector to run. Note: these fields can be marked as optional or
+	// required.
+	ConfigurationFields = []field.SchemaField{TokenField, UserStatusField}
+)
 
-// validateConfig is run after the configuration is loaded, and should return an error if it isn't valid.
-func validateConfig(ctx context.Context, cfg *config) error {
-	if cfg.AccessToken == "" {
-		return fmt.Errorf("access token is missing")
-	}
-
+// ValidateConfig is run after the configuration is loaded, and should return an
+// error if it isn't valid. Implementing this function is optional, it only
+// needs to perform extra validations that cannot be encoded with configuration
+// parameters.
+func ValidateConfig(v *viper.Viper) error {
 	return nil
-}
-
-// cmdFlags sets the cmdFlags required for the connector.
-func cmdFlags(cmd *cobra.Command) {
-	cmd.PersistentFlags().String("token", "", "The HubSpot personal access token used to connect to the HubSpot API. ($BATON_TOKEN)")
-	cmd.PersistentFlags().Bool("user-status", false, "Whether to enable user status. WARNING: Additional token scope needed: 'crm.objects.users.read'. ($BATON_USER_STATUS)")
 }

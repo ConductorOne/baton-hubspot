@@ -43,20 +43,28 @@ func (c *userResourceType) cacheUsers(ids []string) error {
 }
 
 // Create a new connector resource for an HubSpot user.
-func (c *userResourceType) userResource(user *hubspot.User, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
+func (c *userResourceType) userResource(ctx context.Context, user *hubspot.User, parentResourceID *v2.ResourceId) (*v2.Resource, annotations.Annotations, error) {
 	profile := map[string]interface{}{
 		"login":   user.Email,
 		"user_id": user.Id,
 	}
-
 	userState := v2.UserTrait_Status_STATUS_ENABLED
 	if c.deletedSet[user.Id] {
 		userState = v2.UserTrait_Status_STATUS_DISABLED
 	}
+
 	userTraitOptions := []rs.UserTraitOption{
 		rs.WithUserProfile(profile),
 		rs.WithEmail(user.Email, true),
 		rs.WithStatus(userState),
+	}
+
+	lastLogin, annos, err := c.client.GetUserLastLogin(ctx, user.Id)
+	if err != nil {
+		return nil, annos, fmt.Errorf("failed to get last login activity %w", err)
+	}
+	if lastLogin != nil {
+		userTraitOptions = append(userTraitOptions, rs.WithLastLogin(*lastLogin))
 	}
 
 	resource, err := rs.NewUserResource(
@@ -68,10 +76,10 @@ func (c *userResourceType) userResource(user *hubspot.User, parentResourceID *v2
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return resource, nil
+	return resource, nil, nil
 }
 
 func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, token *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
@@ -148,9 +156,9 @@ func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 		var rv []*v2.Resource
 		for _, user := range users {
 			userCopy := user
-			ur, err := u.userResource(&userCopy, parentId)
+			ur, annos, err := u.userResource(ctx, &userCopy, parentId)
 			if err != nil {
-				return nil, "", nil, err
+				return nil, "", annos, err
 			}
 
 			rv = append(rv, ur)
