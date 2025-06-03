@@ -25,6 +25,7 @@ const TeamsBaseURL = BaseURL + "settings/v3/users/teams"
 const RolesBaseURL = BaseURL + "settings/v3/users/roles"
 const AccountBaseURL = BaseURL + "account-info/v3/details"
 const SearchUserObjectURL = BaseURL + "crm/v3/objects/users/search"
+const AccountLastLogin = BaseURL + "account-info/v3/activity/login"
 const EqualOperator = "EQ"
 const HSInternalUserId = "hs_internal_user_id"
 
@@ -36,6 +37,16 @@ type Client struct {
 type UsersResponse struct {
 	Results []User         `json:"results"`
 	Paging  PaginationData `json:"paging"`
+}
+
+type AccountLoginResponse struct {
+	Results []LoginActivity `json:"results,omitempty"`
+	Paging  PaginationData  `json:"paging,omitempty"`
+}
+
+type LoginActivity struct {
+	LoginAt   time.Time `json:"loginAt,omitempty"`
+	Succeeded bool      `json:"loginSucceeded,omitempty"`
 }
 
 type GetUsersVars struct {
@@ -230,6 +241,30 @@ func (c *Client) GetDeletedUsers(ctx context.Context, pageOptions GetUsersVars) 
 		return ids, res.Paging.Next.After, annos, nil
 	}
 	return ids, "", annos, nil
+}
+
+func (c *Client) GetUserLastLogin(ctx context.Context, userId string) (*time.Time, annotations.Annotations, error) {
+	queryParams := setupPaginationQuery(url.Values{}, 5, "")
+	var accountLoginResponse AccountLoginResponse
+	queryParams.Add("userId", userId)
+
+	annos, err := c.get(
+		ctx,
+		AccountLastLogin,
+		&accountLoginResponse,
+		queryParams,
+	)
+	if err != nil {
+		return nil, annos, err
+	}
+
+	for _, loginActivity := range accountLoginResponse.Results {
+		if loginActivity.Succeeded {
+			return &loginActivity.LoginAt, annos, nil
+		}
+	}
+
+	return nil, annos, nil
 }
 
 func (c *Client) get(ctx context.Context, url string, resourceResponse interface{}, queryParams url.Values) (annotations.Annotations, error) {
