@@ -5,7 +5,7 @@ go 1.23.4
 toolchain go1.24.0
 
 require (
-	github.com/conductorone/baton-sdk v0.3.5
+	github.com/conductorone/baton-sdk v0.3.10
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/spf13/viper v1.19.0
 	go.uber.org/zap v1.27.0
