@@ -243,6 +243,8 @@ func (c *Client) GetDeletedUsers(ctx context.Context, pageOptions GetUsersVars) 
 	return ids, "", annos, nil
 }
 
+// GetUserLastLogin returns the last login time for a user.
+// The /account-info/v3/activity/login endpoint requires account-info.security.read scope.
 func (c *Client) GetUserLastLogin(ctx context.Context, userId string) (*time.Time, annotations.Annotations, error) {
 	queryParams := setupPaginationQuery(url.Values{}, 5, "")
 	var accountLoginResponse AccountLoginResponse

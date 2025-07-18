@@ -12,6 +12,17 @@ To obtain an API key, you need to create an account in HubSpot and create a priv
 
 Be aware that to sync also the user or team roles, you have to have an enterprise account since these roles are available only under enterprise account.
 
+## Permissions
+
+| API                                      | Required Scopes                                      | Purpose                      |
+|-------------------------------------------|------------------------------------------------------|------------------------------|
+| GET /settings/v3/users                    | `crm.objects.users.read` or `settings.users.read`     | Retrieve users               |
+| POST /crm/v3/objects/users/search         | `crm.objects.users.read`                              | Retrieve deactivated users   |
+| GET /settings/v3/users/teams              | `settings.users.teams.read`                           | Retrieve teams               |
+| GET /settings/v3/users/roles              | `crm.objects.users.read` or `settings.users.read`     | Retrieve roles               |
+| GET /account-info/v3/details              | `account-info.read`                                   | Retrieve account details     |
+| GET /account-info/v3/activity/login       | `account-info.security.read`                          | Get user last login activity |
+
 # Getting Started
 
 ## brew

@@ -10,6 +10,10 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -61,7 +65,12 @@ func (c *userResourceType) userResource(ctx context.Context, user *hubspot.User,
 
 	lastLogin, annos, err := c.client.GetUserLastLogin(ctx, user.Id)
 	if err != nil {
-		return nil, annos, fmt.Errorf("failed to get last login activity %w", err)
+		if s, ok := status.FromError(err); ok && s.Code() == 403 {
+			l := ctxzap.Extract(ctx)
+			l.Warn("baton-hubspot: failed to get last login activity: permission denied", zap.String("user_id", user.Id), zap.Error(err))
+		} else {
+			return nil, annos, err
+		}
 	}
 	if lastLogin != nil {
 		userTraitOptions = append(userTraitOptions, rs.WithLastLogin(*lastLogin))
