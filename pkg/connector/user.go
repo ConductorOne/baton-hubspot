@@ -10,6 +10,9 @@ import (
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
+
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 )
 
 const (
@@ -59,9 +62,10 @@ func (c *userResourceType) userResource(ctx context.Context, user *hubspot.User,
 		rs.WithStatus(userState),
 	}
 
-	lastLogin, annos, err := c.client.GetUserLastLogin(ctx, user.Id)
+	lastLogin, _, err := c.client.GetUserLastLogin(ctx, user.Id)
 	if err != nil {
-		return nil, annos, fmt.Errorf("failed to get last login activity %w", err)
+		l := ctxzap.Extract(ctx)
+		l.Warn("failed to get last login activity", zap.String("user_id", user.Id), zap.Error(err))
 	}
 	if lastLogin != nil {
 		userTraitOptions = append(userTraitOptions, rs.WithLastLogin(*lastLogin))
