@@ -62,10 +62,6 @@ func (r *roleResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ 
 	}
 
 	roles, annotations, _ := r.client.GetRoles(ctx)
-	if roles == nil {
-		// do not list user entitlements when account does not support roles
-		return nil, "", annotations, nil
-	}
 
 	var rv []*v2.Resource
 	for _, role := range roles {
@@ -175,6 +171,10 @@ func (r *roleResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 
 	roleId := entitlement.Resource.Id.Resource
 
+	if roleId == superAdminRole {
+		return nil, fmt.Errorf("hubspot-connector: super admin role can not be provisioned via API")
+	}
+
 	// no need to check current user role - only rewriting is supported
 	// grant role membership
 	annos, err := r.client.UpdateUser(
@@ -204,6 +204,11 @@ func (r *roleResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 		)
 
 		return nil, fmt.Errorf("hubspot-connector: only users can have role membership revoked")
+	}
+
+	roleId := grant.Entitlement.Resource.Id.Resource
+	if roleId == superAdminRole {
+		return nil, fmt.Errorf("hubspot-connector: super admin role can not be revoked via API")
 	}
 
 	// revoke role membership
