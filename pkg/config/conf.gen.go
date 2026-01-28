@@ -8,7 +8,7 @@ type Hubspot struct {
 	UserStatus bool `mapstructure:"user-status"`
 }
 
-func (c* Hubspot) findFieldByTag(tagValue string) (any, bool) {
+func (c *Hubspot) findFieldByTag(tagValue string) (any, bool) {
 	v := reflect.ValueOf(c).Elem() // Dereference pointer to struct
 	t := v.Type()
 
@@ -40,11 +40,13 @@ func (c *Hubspot) GetString(fieldName string) string {
 	if !ok {
 		return ""
 	}
-	t, ok := v.(string)
-	if !ok {
-		panic("wrong type")
+	if t, ok := v.(string); ok {
+		return t
 	}
-	return t
+	if t, ok := v.([]byte); ok {
+		return string(t)
+	}
+	panic("wrong type")
 }
 
 func (c *Hubspot) GetInt(fieldName string) int {
