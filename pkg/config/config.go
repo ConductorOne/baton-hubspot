@@ -18,11 +18,15 @@ var (
 		field.WithDescription("Enables user status syncing. WARNING: Additional token scope needed: 'crm.objects.users.read'. ($BATON_USER_STATUS)"),
 		field.WithDefaultValue(false),
 	)
+	BaseURLField = field.StringField(
+		"base-url",
+		field.WithDescription("Override the HubSpot API URL (for testing)"),
+	)
 )
 
 //go:generate go run ./gen
 var Config = field.NewConfiguration(
-	[]field.SchemaField{TokenField, UserStatusField},
+	[]field.SchemaField{TokenField, UserStatusField, BaseURLField},
 	field.WithConnectorDisplayName("HubSpot"),
 	field.WithHelpUrl("/docs/baton/hubspot"),
 	field.WithIconUrl("/static/app-icons/hubspot.svg"),

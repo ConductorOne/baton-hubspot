@@ -18,20 +18,42 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const BaseURL = "https://api.hubapi.com/"
-const UsersBaseURL = BaseURL + "settings/v3/users"
-const UserBaseURL = BaseURL + "settings/v3/users/%s"
-const TeamsBaseURL = BaseURL + "settings/v3/users/teams"
-const RolesBaseURL = BaseURL + "settings/v3/users/roles"
-const AccountBaseURL = BaseURL + "account-info/v3/details"
-const SearchUserObjectURL = BaseURL + "crm/v3/objects/users/search"
-const AccountLastLogin = BaseURL + "account-info/v3/activity/login"
+const DefaultBaseURL = "https://api.hubapi.com/"
 const EqualOperator = "EQ"
 const HSInternalUserId = "hs_internal_user_id"
 
 type Client struct {
 	httpClient  *http.Client
 	accessToken string
+	baseURL     string
+}
+
+func (c *Client) usersURL() string {
+	return c.baseURL + "settings/v3/users"
+}
+
+func (c *Client) userURL(userID string) string {
+	return fmt.Sprintf(c.baseURL+"settings/v3/users/%s", userID)
+}
+
+func (c *Client) teamsURL() string {
+	return c.baseURL + "settings/v3/users/teams"
+}
+
+func (c *Client) rolesURL() string {
+	return c.baseURL + "settings/v3/users/roles"
+}
+
+func (c *Client) accountURL() string {
+	return c.baseURL + "account-info/v3/details"
+}
+
+func (c *Client) searchUserObjectURL() string {
+	return c.baseURL + "crm/v3/objects/users/search"
+}
+
+func (c *Client) accountLastLoginURL() string {
+	return c.baseURL + "account-info/v3/activity/login"
 }
 
 type UsersResponse struct {
@@ -84,10 +106,14 @@ type SearchUserObjectPayload struct {
 	After        string    `json:"after,omitempty"`
 }
 
-func NewClient(accessToken string, httpClient *http.Client) *Client {
+func NewClient(accessToken string, httpClient *http.Client, baseURL string) *Client {
+	if baseURL == "" {
+		baseURL = DefaultBaseURL
+	}
 	return &Client{
 		accessToken: accessToken,
 		httpClient:  httpClient,
+		baseURL:     baseURL,
 	}
 }
 
@@ -112,7 +138,7 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 
 	annos, err := c.get(
 		ctx,
-		UsersBaseURL,
+		c.usersURL(),
 		&userResponse,
 		queryParams,
 	)
@@ -133,7 +159,7 @@ func (c *Client) GetTeams(ctx context.Context) ([]Team, annotations.Annotations,
 	var teamResponse TeamsResponse
 	annos, err := c.get(
 		ctx,
-		TeamsBaseURL,
+		c.teamsURL(),
 		&teamResponse,
 		nil,
 	)
@@ -150,7 +176,7 @@ func (c *Client) GetAccount(ctx context.Context) (Account, annotations.Annotatio
 	var accountResponse Account
 	annos, err := c.get(
 		ctx,
-		AccountBaseURL,
+		c.accountURL(),
 		&accountResponse,
 		nil,
 	)
@@ -167,7 +193,7 @@ func (c *Client) GetUser(ctx context.Context, userId string) (User, annotations.
 	var userResponse User
 	annos, err := c.get(
 		ctx,
-		fmt.Sprintf(UserBaseURL, userId),
+		c.userURL(userId),
 		&userResponse,
 		nil,
 	)
@@ -181,7 +207,7 @@ func (c *Client) GetUser(ctx context.Context, userId string) (User, annotations.
 // GetRoles returns all roles under a single account.
 func (c *Client) GetRoles(ctx context.Context) ([]Role, annotations.Annotations, error) {
 	var rolesResponse RolesResponse
-	annos, err := c.get(ctx, RolesBaseURL, &rolesResponse, nil)
+	annos, err := c.get(ctx, c.rolesURL(), &rolesResponse, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -199,7 +225,7 @@ type UpdateUserPayload struct {
 func (c *Client) UpdateUser(ctx context.Context, userId string, payload *UpdateUserPayload) (annotations.Annotations, error) {
 	annos, err := c.put(
 		ctx,
-		fmt.Sprintf(UserBaseURL, userId),
+		c.userURL(userId),
 		payload,
 		nil,
 	)
@@ -226,7 +252,7 @@ func (c *Client) GetDeletedUsers(ctx context.Context, pageOptions GetUsersVars) 
 	var res SearchUserObjectResponse
 	annos, err := c.post(
 		ctx,
-		SearchUserObjectURL,
+		c.searchUserObjectURL(),
 		payload,
 		&res,
 	)
@@ -252,7 +278,7 @@ func (c *Client) GetUserLastLogin(ctx context.Context, userId string) (*time.Tim
 
 	annos, err := c.get(
 		ctx,
-		AccountLastLogin,
+		c.accountLastLoginURL(),
 		&accountLoginResponse,
 		queryParams,
 	)

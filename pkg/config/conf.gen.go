@@ -6,6 +6,7 @@ import "reflect"
 type Hubspot struct {
 	Token string `mapstructure:"token"`
 	UserStatus bool `mapstructure:"user-status"`
+	BaseUrl string `mapstructure:"base-url"`
 }
 
 func (c *Hubspot) findFieldByTag(tagValue string) (any, bool) {

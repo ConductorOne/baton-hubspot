@@ -75,7 +75,7 @@ func (hs *HubSpot) Validate(ctx context.Context) (annotations.Annotations, error
 }
 
 // New returns the HubSpot connector.
-func New(ctx context.Context, accessToken string, userStatus bool) (*HubSpot, error) {
+func New(ctx context.Context, accessToken string, userStatus bool, baseURL string) (*HubSpot, error) {
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
 
 	if err != nil {
@@ -83,7 +83,7 @@ func New(ctx context.Context, accessToken string, userStatus bool) (*HubSpot, er
 	}
 
 	return &HubSpot{
-		client:     hubspot.NewClient(accessToken, httpClient),
+		client:     hubspot.NewClient(accessToken, httpClient, baseURL),
 		userStatus: userStatus,
 	}, nil
 }
