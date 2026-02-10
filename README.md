@@ -1,6 +1,6 @@
 ![Baton Logo](./docs/images/baton-logo.png)
 
-# `baton-hubspot` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-hubspot.svg)](https://pkg.go.dev/github.com/conductorone/baton-hubspot) ![main ci](https://github.com/conductorone/baton-hubspot/actions/workflows/main.yaml/badge.svg)
+# `baton-hubspot` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-hubspot.svg)](https://pkg.go.dev/github.com/conductorone/baton-hubspot) ![verify](https://github.com/conductorone/baton-hubspot/actions/workflows/verify.yaml/badge.svg)
 
 `baton-hubspot` is a connector for HubSpot built using the [Baton SDK](https://github.com/conductorone/baton-sdk). It communicates with the HubSpot User provisioning API to sync data about which teams and users have access within an account.
 
