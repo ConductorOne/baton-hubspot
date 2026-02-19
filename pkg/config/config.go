@@ -22,6 +22,7 @@ var (
 		"base-url",
 		field.WithDescription("Override the HubSpot API URL (for testing)"),
 		field.WithHidden(true),
+		field.WithExportTarget(field.ExportTargetCLIOnly),
 	)
 )
 
