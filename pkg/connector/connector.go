@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"sync"
 
 	"github.com/conductorone/baton-hubspot/pkg/hubspot"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -12,6 +13,31 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+// deletedUsersSet tracks deactivated HubSpot users across resource types.
+// It is populated during user listing and consulted during grant creation
+// to skip grants for disabled users.
+type deletedUsersSet struct {
+	mu  sync.Mutex
+	set map[string]bool
+}
+
+func (d *deletedUsersSet) Add(ids []string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.set == nil {
+		d.set = make(map[string]bool)
+	}
+	for _, id := range ids {
+		d.set[id] = true
+	}
+}
+
+func (d *deletedUsersSet) Contains(id string) bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.set[id]
+}
 
 var (
 	resourceTypeUser = &v2.ResourceType{
@@ -43,16 +69,17 @@ var (
 )
 
 type HubSpot struct {
-	client     *hubspot.Client
-	userStatus bool
+	client      *hubspot.Client
+	userStatus  bool
+	deletedUsers *deletedUsersSet
 }
 
 func (hs *HubSpot) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
-		accountBuilder(hs.client),
-		teamBuilder(hs.client),
-		userBuilder(hs.client, hs.userStatus),
-		roleBuilder(hs.client),
+		accountBuilder(hs.client, hs.deletedUsers),
+		teamBuilder(hs.client, hs.deletedUsers),
+		userBuilder(hs.client, hs.userStatus, hs.deletedUsers),
+		roleBuilder(hs.client, hs.deletedUsers),
 	}
 }
 
@@ -83,7 +110,8 @@ func New(ctx context.Context, accessToken string, userStatus bool) (*HubSpot, er
 	}
 
 	return &HubSpot{
-		client:     hubspot.NewClient(accessToken, httpClient),
-		userStatus: userStatus,
+		client:       hubspot.NewClient(accessToken, httpClient),
+		userStatus:   userStatus,
+		deletedUsers: &deletedUsersSet{},
 	}, nil
 }

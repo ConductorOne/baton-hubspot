@@ -23,6 +23,7 @@ const (
 type roleResourceType struct {
 	resourceType *v2.ResourceType
 	client       *hubspot.Client
+	deletedUsers *deletedUsersSet
 }
 
 func (r *roleResourceType) ResourceType(_ context.Context) *v2.ResourceType {
@@ -145,6 +146,9 @@ func (r *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 	}
 
 	for _, user := range filteredUsers {
+		if r.deletedUsers.Contains(user.Id) {
+			continue
+		}
 		userResourceId := getUserResourceId(user.Id)
 		rv = append(rv, grant.NewGrant(
 			resource,
@@ -224,9 +228,10 @@ func (r *roleResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 	return annos, nil
 }
 
-func roleBuilder(client *hubspot.Client) *roleResourceType {
+func roleBuilder(client *hubspot.Client, deletedUsers *deletedUsersSet) *roleResourceType {
 	return &roleResourceType{
 		resourceType: resourceTypeRole,
 		client:       client,
+		deletedUsers: deletedUsers,
 	}
 }

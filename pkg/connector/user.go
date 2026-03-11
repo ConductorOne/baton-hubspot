@@ -3,7 +3,6 @@ package connector
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/conductorone/baton-hubspot/pkg/hubspot"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -26,24 +25,11 @@ type userResourceType struct {
 	resourceType *v2.ResourceType
 	client       *hubspot.Client
 	userStatus   bool
-	deletedSet   map[string]bool
-	setMtx       sync.Mutex
+	deletedUsers *deletedUsersSet
 }
 
 func (u *userResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 	return u.resourceType
-}
-
-func (c *userResourceType) cacheUsers(ids []string) error {
-	c.setMtx.Lock()
-	defer c.setMtx.Unlock()
-	if c.deletedSet == nil {
-		c.deletedSet = make(map[string]bool)
-	}
-	for _, user := range ids {
-		c.deletedSet[user] = true
-	}
-	return nil
 }
 
 // Create a new connector resource for an HubSpot user.
@@ -53,7 +39,7 @@ func (c *userResourceType) userResource(ctx context.Context, user *hubspot.User,
 		"user_id": user.Id,
 	}
 	userState := v2.UserTrait_Status_STATUS_ENABLED
-	if c.deletedSet[user.Id] {
+	if c.deletedUsers.Contains(user.Id) {
 		userState = v2.UserTrait_Status_STATUS_DISABLED
 	}
 
@@ -118,10 +104,7 @@ func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("hubspot-connector: failed to get deactivated users: %w", err)
 		}
-		err = u.cacheUsers(deletedIDs)
-		if err != nil {
-			return nil, "", nil, fmt.Errorf("hubspot-connector: failed to get deactivated users: %w", err)
-		}
+		u.deletedUsers.Add(deletedIDs)
 		if nextToken != "" {
 			parsedNextToken, err := parseUserPaginationToken(
 				UsersPaginationToken{Page: nextToken, Type: PageTypeDeleted},
@@ -175,7 +158,6 @@ func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, to
 
 		return rv, parsedNextToken, annotations, nil
 	case PageTypeCompleted:
-		u.deletedSet = nil
 		return nil, "", nil, nil
 	}
 	return nil, "", nil, nil
@@ -189,10 +171,11 @@ func (u *userResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 	return nil, "", nil, nil
 }
 
-func userBuilder(client *hubspot.Client, userStatus bool) *userResourceType {
+func userBuilder(client *hubspot.Client, userStatus bool, deletedUsers *deletedUsersSet) *userResourceType {
 	return &userResourceType{
 		resourceType: resourceTypeUser,
 		client:       client,
 		userStatus:   userStatus,
+		deletedUsers: deletedUsers,
 	}
 }

@@ -24,6 +24,7 @@ const (
 type teamResourceType struct {
 	resourceType *v2.ResourceType
 	client       *hubspot.Client
+	deletedUsers *deletedUsersSet
 }
 
 func (t *teamResourceType) ResourceType(_ context.Context) *v2.ResourceType {
@@ -137,6 +138,9 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 	// create membership grants
 	var rv []*v2.Grant
 	for _, id := range primaryUserIDs {
+		if t.deletedUsers.Contains(id) {
+			continue
+		}
 		user, _, err := t.client.GetUser(ctx, id)
 		if err != nil {
 			return nil, "", nil, err
@@ -154,6 +158,9 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 	}
 
 	for _, id := range secondaryUserIDs {
+		if t.deletedUsers.Contains(id) {
+			continue
+		}
 		user, _, err := t.client.GetUser(ctx, id)
 		if err != nil {
 			return nil, "", nil, err
@@ -307,9 +314,10 @@ func (t *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 	return annos, nil
 }
 
-func teamBuilder(client *hubspot.Client) *teamResourceType {
+func teamBuilder(client *hubspot.Client, deletedUsers *deletedUsersSet) *teamResourceType {
 	return &teamResourceType{
 		resourceType: resourceTypeTeam,
 		client:       client,
+		deletedUsers: deletedUsers,
 	}
 }

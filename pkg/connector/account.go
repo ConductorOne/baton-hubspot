@@ -18,6 +18,7 @@ const accountMembership = "member"
 type accountResourceType struct {
 	resourceType *v2.ResourceType
 	client       *hubspot.Client
+	deletedUsers *deletedUsersSet
 }
 
 func (acc *accountResourceType) ResourceType(_ context.Context) *v2.ResourceType {
@@ -103,6 +104,9 @@ func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resourc
 
 	var rv []*v2.Grant
 	for _, user := range users {
+		if acc.deletedUsers.Contains(user.Id) {
+			continue
+		}
 		userResourceId := getUserResourceId(user.Id)
 		rv = append(
 			rv,
@@ -117,9 +121,10 @@ func (acc *accountResourceType) Grants(ctx context.Context, resource *v2.Resourc
 	return rv, pageToken, annotations, nil
 }
 
-func accountBuilder(client *hubspot.Client) *accountResourceType {
+func accountBuilder(client *hubspot.Client, deletedUsers *deletedUsersSet) *accountResourceType {
 	return &accountResourceType{
 		resourceType: resourceTypeAccount,
 		client:       client,
+		deletedUsers: deletedUsers,
 	}
 }
