@@ -164,10 +164,11 @@ func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, op
 		var rv []*v2.Resource
 		for _, user := range users {
 			userCopy := user
-			ur, _, err := u.userResource(ctx, &userCopy, parentId, deletedSet)
+			ur, userAnnotations, err := u.userResource(ctx, &userCopy, parentId, deletedSet)
 			if err != nil {
-				return nil, nil, err
+				return nil, &rs.SyncOpResults{Annotations: userAnnotations}, err
 			}
+			annos.Merge(userAnnotations...)
 			rv = append(rv, ur)
 		}
 
