@@ -8,7 +8,6 @@ import (
 	"github.com/conductorone/baton-hubspot/pkg/hubspot"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
@@ -60,14 +59,14 @@ func teamResource(team *hubspot.Team, parentResourceID *v2.ResourceId) (*v2.Reso
 	return resource, nil
 }
 
-func (t *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (t *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ rs.SyncOpAttrs) ([]*v2.Resource, *rs.SyncOpResults, error) {
 	if parentId == nil {
-		return nil, "", nil, nil
+		return nil, nil, nil
 	}
 
-	teams, annotations, err := t.client.GetTeams(ctx)
+	teams, annos, err := t.client.GetTeams(ctx)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to list teams: %w", err)
+		return nil, nil, fmt.Errorf("hubspot-connector: failed to list teams: %w", err)
 	}
 
 	var rv []*v2.Resource
@@ -76,16 +75,16 @@ func (t *teamResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ 
 
 		tResource, err := teamResource(&teamCopy, parentId)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 
 		rv = append(rv, tResource)
 	}
 
-	return rv, "", annotations, nil
+	return rv, &rs.SyncOpResults{Annotations: annos}, nil
 }
 
-func (t *teamResourceType) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (t *teamResourceType) Entitlements(_ context.Context, resource *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Entitlement, *rs.SyncOpResults, error) {
 	var rv []*v2.Entitlement
 	primaryAssignmentOptions := []ent.EntitlementOption{
 		ent.WithGrantableTo(resourceTypeUser),
@@ -98,7 +97,6 @@ func (t *teamResourceType) Entitlements(ctx context.Context, resource *v2.Resour
 		ent.WithDescription(fmt.Sprintf("Access to %s team in HubSpot", resource.DisplayName)),
 	}
 
-	// create membership entitlements
 	rv = append(
 		rv,
 		ent.NewAssignmentEntitlement(
@@ -113,13 +111,13 @@ func (t *teamResourceType) Entitlements(ctx context.Context, resource *v2.Resour
 		),
 	)
 
-	return rv, "", nil, nil
+	return rv, nil, nil
 }
 
-func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
 	teamTrait, err := rs.GetGroupTrait(resource)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	var primaryUserIDs, secondaryUserIDs []string
@@ -134,45 +132,30 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 		secondaryUserIDs = strings.Split(secondaryUserIDsString, ",")
 	}
 
-	// create membership grants
 	var rv []*v2.Grant
 	for _, id := range primaryUserIDs {
 		user, _, err := t.client.GetUser(ctx, id)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 
 		userResourceId := getUserResourceId(user.Id)
-		rv = append(
-			rv,
-			grant.NewGrant(
-				resource,
-				primaryMemberEntitlement,
-				userResourceId,
-			),
-		)
+		rv = append(rv, grant.NewGrant(resource, primaryMemberEntitlement, userResourceId))
 	}
 
 	for _, id := range secondaryUserIDs {
 		user, _, err := t.client.GetUser(ctx, id)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 		userResourceId := getUserResourceId(user.Id)
-		rv = append(
-			rv,
-			grant.NewGrant(
-				resource,
-				secondaryMemberEntitlement,
-				userResourceId,
-			),
-		)
+		rv = append(rv, grant.NewGrant(resource, secondaryMemberEntitlement, userResourceId))
 	}
 
-	return rv, "", nil, nil
+	return rv, nil, nil
 }
 
-func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) (annotations.Annotations, error) {
+func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) ([]*v2.Grant, annotations.Annotations, error) {
 	l := ctxzap.Extract(ctx)
 
 	if principal.Id.ResourceType != resourceTypeUser.Id {
@@ -182,7 +165,7 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 			zap.String("principal_type", principal.Id.ResourceType),
 		)
 
-		return nil, fmt.Errorf("hubspot-connector: only users can be granted team membership")
+		return nil, nil, fmt.Errorf("hubspot-connector: only users can be granted team membership")
 	}
 
 	teamId := entitlement.Resource.Id.Resource
@@ -191,7 +174,7 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 	// need to check principal role - without specifying role, it will be removed
 	user, _, err := t.client.GetUser(ctx, principal.Id.Resource)
 	if err != nil {
-		return nil, fmt.Errorf("hubspot-connector: failed to get user: %w", err)
+		return nil, nil, fmt.Errorf("hubspot-connector: failed to get user: %w", err)
 	}
 
 	// there is only one role supported so far
@@ -204,7 +187,7 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 	switch entitlementId {
 	case primaryMemberEntitlement:
 		if user.TeamId == teamId {
-			return nil, fmt.Errorf("hubspot-connector: user is already a primary member of team %s", teamId)
+			return nil, nil, fmt.Errorf("hubspot-connector: user is already a primary member of team %s", teamId)
 		}
 
 		annos, err = t.client.UpdateUser(
@@ -216,11 +199,11 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 			},
 		)
 		if err != nil {
-			return nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
+			return nil, nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
 		}
 	case secondaryMemberEntitlement:
 		if containsTeam(user.SecondaryTeamIDs, teamId) {
-			return nil, fmt.Errorf("hubspot-connector: user is already a secondary member of team %s", teamId)
+			return nil, nil, fmt.Errorf("hubspot-connector: user is already a secondary member of team %s", teamId)
 		}
 
 		annos, err = t.client.UpdateUser(
@@ -232,11 +215,11 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 			},
 		)
 		if err != nil {
-			return nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
+			return nil, nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
 		}
 	}
 
-	return annos, nil
+	return nil, annos, nil
 }
 
 func (t *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {

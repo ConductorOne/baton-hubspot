@@ -47,8 +47,8 @@ type HubSpot struct {
 	userStatus bool
 }
 
-func (hs *HubSpot) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
-	return []connectorbuilder.ResourceSyncer{
+func (hs *HubSpot) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncerV2 {
+	return []connectorbuilder.ResourceSyncerV2{
 		accountBuilder(hs.client),
 		teamBuilder(hs.client),
 		userBuilder(hs.client, hs.userStatus),
