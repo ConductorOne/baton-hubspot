@@ -72,7 +72,7 @@ func (c *userResourceType) userResource(ctx context.Context, user *hubspot.User,
 		rs.WithParentResourceID(parentResourceID),
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, annos, err
 	}
 
 	return resource, annos, nil
