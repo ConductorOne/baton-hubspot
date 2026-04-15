@@ -34,7 +34,6 @@ func (u *userResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 	return u.resourceType
 }
 
-
 // userResource creates a new connector resource for a HubSpot user.
 func (c *userResourceType) userResource(ctx context.Context, user *hubspot.User, parentResourceID *v2.ResourceId, deletedSet map[string]bool) (*v2.Resource, annotations.Annotations, error) {
 	profile := map[string]interface{}{
@@ -76,7 +75,7 @@ func (c *userResourceType) userResource(ctx context.Context, user *hubspot.User,
 		return nil, nil, err
 	}
 
-	return resource, nil, nil
+	return resource, annos, nil
 }
 
 func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, opts rs.SyncOpAttrs) ([]*v2.Resource, *rs.SyncOpResults, error) {
