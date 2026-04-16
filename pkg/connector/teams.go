@@ -133,26 +133,28 @@ func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ 
 	}
 
 	var rv []*v2.Grant
+	var annos annotations.Annotations
 	for _, id := range primaryUserIDs {
-		user, _, err := t.client.GetUser(ctx, id)
+		user, userAnnotations, err := t.client.GetUser(ctx, id)
 		if err != nil {
 			return nil, nil, err
 		}
-
+		annos.Merge(userAnnotations...)
 		userResourceId := getUserResourceId(user.Id)
 		rv = append(rv, grant.NewGrant(resource, primaryMemberEntitlement, userResourceId))
 	}
 
 	for _, id := range secondaryUserIDs {
-		user, _, err := t.client.GetUser(ctx, id)
+		user, userAnnotations, err := t.client.GetUser(ctx, id)
 		if err != nil {
 			return nil, nil, err
 		}
+		annos.Merge(userAnnotations...)
 		userResourceId := getUserResourceId(user.Id)
 		rv = append(rv, grant.NewGrant(resource, secondaryMemberEntitlement, userResourceId))
 	}
 
-	return rv, nil, nil
+	return rv, &rs.SyncOpResults{Annotations: annos}, nil
 }
 
 func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) ([]*v2.Grant, annotations.Annotations, error) {
