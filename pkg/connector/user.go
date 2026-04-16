@@ -151,13 +151,16 @@ func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, op
 			return nil, nil, err
 		}
 
-		userIDs := make([]string, 0, len(users))
-		for _, user := range users {
-			userIDs = append(userIDs, user.Id)
-		}
-		deletedSet, err := session.GetManyJSON[bool](ctx, opts.Session, userIDs, sessions.WithPrefix(deletedUsersSessionKey))
-		if err != nil {
-			return nil, nil, fmt.Errorf("hubspot-connector: failed to get deleted users from session: %w", err)
+		var deletedSet map[string]bool
+		if u.userStatus {
+			userIDs := make([]string, 0, len(users))
+			for _, user := range users {
+				userIDs = append(userIDs, user.Id)
+			}
+			deletedSet, err = session.GetManyJSON[bool](ctx, opts.Session, userIDs, sessions.WithPrefix(deletedUsersSessionKey))
+			if err != nil {
+				return nil, nil, fmt.Errorf("hubspot-connector: failed to get deleted users from session: %w", err)
+			}
 		}
 
 		var rv []*v2.Resource
