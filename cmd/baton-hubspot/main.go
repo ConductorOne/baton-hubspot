@@ -42,7 +42,7 @@ func main() {
 func getConnector(ctx context.Context, hsc *cfg.Hubspot) (types.ConnectorServer, error) {
 	l := ctxzap.Extract(ctx)
 
-	hubspotConnector, err := connector.New(ctx, hsc.Token, hsc.UserStatus)
+	hubspotConnector, err := connector.New(ctx, hsc.Token, hsc.UserStatus, hsc.BaseUrl)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err
