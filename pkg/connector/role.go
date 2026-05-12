@@ -7,7 +7,6 @@ import (
 	"github.com/conductorone/baton-hubspot/pkg/hubspot"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	grant "github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
@@ -56,12 +55,12 @@ func roleResource(role *hubspot.Role, parentResourceID *v2.ResourceId) (*v2.Reso
 	return resource, nil
 }
 
-func (r *roleResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (r *roleResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ rs.SyncOpAttrs) ([]*v2.Resource, *rs.SyncOpResults, error) {
 	if parentId == nil {
-		return nil, "", nil, nil
+		return nil, nil, nil
 	}
 
-	roles, annotations, _ := r.client.GetRoles(ctx)
+	roles, annos, _ := r.client.GetRoles(ctx)
 
 	var rv []*v2.Resource
 	for _, role := range roles {
@@ -69,7 +68,7 @@ func (r *roleResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ 
 
 		rr, err := roleResource(&roleCopy, parentId)
 		if err != nil {
-			return nil, "", nil, err
+			return nil, nil, err
 		}
 
 		rv = append(rv, rr)
@@ -79,15 +78,15 @@ func (r *roleResourceType) List(ctx context.Context, parentId *v2.ResourceId, _ 
 	saRole := hubspot.NewRole(superAdminRole, "Super Admin")
 	sar, err := roleResource(saRole, parentId)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	rv = append(rv, sar)
 
-	return rv, "", annotations, nil
+	return rv, &rs.SyncOpResults{Annotations: annos}, nil
 }
 
-func (r *roleResourceType) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (r *roleResourceType) Entitlements(_ context.Context, resource *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Entitlement, *rs.SyncOpResults, error) {
 	var rv []*v2.Entitlement
 
 	assignmentOptions := []ent.EntitlementOption{
@@ -96,44 +95,42 @@ func (r *roleResourceType) Entitlements(ctx context.Context, resource *v2.Resour
 		ent.WithDescription(fmt.Sprintf("%s role in HubSpot", resource.DisplayName)),
 	}
 
-	// create membership entitlement
 	rv = append(rv, ent.NewAssignmentEntitlement(
 		resource,
 		roleMembership,
 		assignmentOptions...,
 	))
 
-	return rv, "", nil, nil
+	return rv, nil, nil
 }
 
-func (r *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, token *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	bag, err := parsePageToken(token.Token, &v2.ResourceId{ResourceType: resourceTypeUser.Id})
+func (r *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, opts rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
+	bag, err := parsePageToken(opts.PageToken.Token, &v2.ResourceId{ResourceType: resourceTypeUser.Id})
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
-	users, nextToken, annotations, err := r.client.GetUsers(ctx, hubspot.GetUsersVars{
+	users, nextToken, annos, err := r.client.GetUsers(ctx, hubspot.GetUsersVars{
 		Limit: ResourcesPageSize,
 		After: bag.PageToken(),
 	})
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("hubspot-connector: failed to list users: %w", err)
+		return nil, nil, fmt.Errorf("hubspot-connector: failed to list users: %w", err)
 	}
 
 	pageToken, err := bag.NextToken(nextToken)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
-	// Parse the role id from the role profile
 	roleTrait, err := rs.GetRoleTrait(resource)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	roleId, ok := rs.GetProfileStringValue(roleTrait.Profile, "role_id")
 	if !ok {
-		return nil, "", nil, fmt.Errorf("hubspot-connector: error parsing role id from role profile")
+		return nil, nil, fmt.Errorf("hubspot-connector: error parsing role id from role profile")
 	}
 
 	var rv []*v2.Grant
@@ -146,17 +143,13 @@ func (r *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, to
 
 	for _, user := range filteredUsers {
 		userResourceId := getUserResourceId(user.Id)
-		rv = append(rv, grant.NewGrant(
-			resource,
-			roleMembership,
-			userResourceId,
-		))
+		rv = append(rv, grant.NewGrant(resource, roleMembership, userResourceId))
 	}
 
-	return rv, pageToken, annotations, nil
+	return rv, &rs.SyncOpResults{NextPageToken: pageToken, Annotations: annos}, nil
 }
 
-func (r *roleResourceType) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) (annotations.Annotations, error) {
+func (r *roleResourceType) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) ([]*v2.Grant, annotations.Annotations, error) {
 	l := ctxzap.Extract(ctx)
 
 	if principal.Id.ResourceType != resourceTypeUser.Id {
@@ -166,17 +159,15 @@ func (r *roleResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 			zap.String("principal_type", principal.Id.ResourceType),
 		)
 
-		return nil, fmt.Errorf("hubspot-connector: only users can be granted role membership")
+		return nil, nil, fmt.Errorf("hubspot-connector: only users can be granted role membership")
 	}
 
 	roleId := entitlement.Resource.Id.Resource
 
 	if roleId == superAdminRole {
-		return nil, fmt.Errorf("hubspot-connector: super admin role can not be provisioned via API")
+		return nil, nil, fmt.Errorf("hubspot-connector: super admin role can not be provisioned via API")
 	}
 
-	// no need to check current user role - only rewriting is supported
-	// grant role membership
 	annos, err := r.client.UpdateUser(
 		ctx,
 		principal.Id.Resource,
@@ -185,10 +176,10 @@ func (r *roleResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
+		return nil, nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
 	}
 
-	return annos, nil
+	return nil, annos, nil
 }
 
 func (r *roleResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
@@ -211,7 +202,6 @@ func (r *roleResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 		return nil, fmt.Errorf("hubspot-connector: super admin role can not be revoked via API")
 	}
 
-	// revoke role membership
 	annos, err := r.client.UpdateUser(
 		ctx,
 		principal.Id.Resource,
