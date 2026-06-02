@@ -7,7 +7,7 @@ import (
 var (
 	TokenField = field.StringField(
 		"token",
-		field.WithDisplayName("API client secret"),
+		field.WithDisplayName("Access Token"),
 		field.WithDescription("The HubSpot personal access token used to connect to the HubSpot API. ($BATON_TOKEN)"),
 		field.WithRequired(true),
 		field.WithIsSecret(true),
