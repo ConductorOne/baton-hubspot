@@ -94,7 +94,7 @@
     },
     {
       "name": "token",
-      "displayName": "API client secret",
+      "displayName": "Access Token",
       "description": "The HubSpot personal access token used to connect to the HubSpot API. ($BATON_TOKEN)",
       "isRequired": true,
       "isSecret": true,
