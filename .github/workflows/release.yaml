@@ -1,14 +1,12 @@
 # This file is managed by baton-admin. DO NOT EDIT!!!
 name: Release
-
 on:
   push:
     tags:
       - "*"
-
 jobs:
   release:
-    uses: ConductorOne/github-workflows/.github/workflows/release.yaml@v4
+    uses: ConductorOne/github-workflows/.github/workflows/release.yaml@gontzess/fix-windows-s3-upload
     with:
       tag: ${{ github.ref_name }}
     secrets:
