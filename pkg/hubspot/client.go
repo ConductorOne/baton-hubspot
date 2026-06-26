@@ -269,6 +269,57 @@ func (c *Client) GetDeletedUsers(ctx context.Context, pageOptions GetUsersVars) 
 	return ids, "", annos, nil
 }
 
+// DeleteUser removes a user from the HubSpot portal via the Settings API (idempotent: 404 treated as success).
+func (c *Client) DeleteUser(ctx context.Context, userId string) (annotations.Annotations, error) {
+	annos, err := c.delete(ctx, c.userURL(userId), nil)
+	if err != nil {
+		if s, ok := status.FromError(err); ok && s.Code() == 404 {
+			return annos, nil
+		}
+		return nil, fmt.Errorf("hubspot-connector: failed to delete user: %w", err)
+	}
+	return annos, nil
+}
+
+type InviteUserOptions struct {
+	FirstName        string
+	LastName         string
+	RoleID           string
+	PrimaryTeamID    string
+	SecondaryTeamIDs []string
+	SendWelcomeEmail bool
+}
+
+type userInvitePayload struct {
+	Email            string   `json:"email"`
+	SendWelcomeEmail bool     `json:"sendWelcomeEmail"`
+	FirstName        string   `json:"firstName,omitempty"`
+	LastName         string   `json:"lastName,omitempty"`
+	RoleID           string   `json:"roleId,omitempty"`
+	PrimaryTeamID    string   `json:"primaryTeamId,omitempty"`
+	SecondaryTeamIDs []string `json:"secondaryTeamIds,omitempty"`
+}
+
+// InviteUser sends an invitation to the provided email address, creating a new HubSpot portal user.
+// Returns the created user. The caller is responsible for handling 409 (user already exists).
+func (c *Client) InviteUser(ctx context.Context, email string, opts InviteUserOptions) (*User, annotations.Annotations, error) {
+	payload := userInvitePayload{
+		Email:            email,
+		SendWelcomeEmail: opts.SendWelcomeEmail,
+		FirstName:        opts.FirstName,
+		LastName:         opts.LastName,
+		RoleID:           opts.RoleID,
+		PrimaryTeamID:    opts.PrimaryTeamID,
+		SecondaryTeamIDs: opts.SecondaryTeamIDs,
+	}
+	var user User
+	annos, err := c.post(ctx, c.usersURL(), payload, &user)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &user, annos, nil
+}
+
 // GetUserLastLogin returns the last login time for a user.
 // The /account-info/v3/activity/login endpoint requires account-info.security.read scope.
 func (c *Client) GetUserLastLogin(ctx context.Context, userId string) (*time.Time, annotations.Annotations, error) {
@@ -305,6 +356,10 @@ func (c *Client) put(ctx context.Context, url string, data interface{}, resource
 
 func (c *Client) post(ctx context.Context, url string, data interface{}, resourceResponse interface{}) (annotations.Annotations, error) {
 	return c.doRequest(ctx, url, http.MethodPost, data, resourceResponse, nil)
+}
+
+func (c *Client) delete(ctx context.Context, url string, queryParams url.Values) (annotations.Annotations, error) {
+	return c.doRequest(ctx, url, http.MethodDelete, nil, nil, queryParams)
 }
 
 func (c *Client) doRequest(
@@ -347,11 +402,14 @@ func (c *Client) doRequest(
 	defer rawResponse.Body.Close()
 
 	if rawResponse.StatusCode >= 300 {
-		return nil, status.Error(codes.Code(rawResponse.StatusCode), "Request failed") //nolint:gosec // safe conversion: HTTP status code is always in range 0-599
+		bodyBytes, _ := io.ReadAll(rawResponse.Body)
+		return nil, status.Errorf(codes.Code(rawResponse.StatusCode), "Request failed: %s", string(bodyBytes)) //nolint:gosec // safe conversion: HTTP status code is always in range 0-599
 	}
 
-	if err := json.NewDecoder(rawResponse.Body).Decode(&resourceResponse); err != nil {
-		return nil, err
+	if resourceResponse != nil {
+		if err := json.NewDecoder(rawResponse.Body).Decode(&resourceResponse); err != nil {
+			return nil, err
+		}
 	}
 
 	rateLimitData, err := extractRateLimitData(rawResponse)

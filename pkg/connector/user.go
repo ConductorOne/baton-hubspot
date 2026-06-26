@@ -7,12 +7,14 @@ import (
 	"github.com/conductorone/baton-hubspot/pkg/hubspot"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/session"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/conductorone/baton-sdk/pkg/types/sessions"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -189,6 +191,84 @@ func (u *userResourceType) Entitlements(_ context.Context, _ *v2.Resource, _ rs.
 
 func (u *userResourceType) Grants(_ context.Context, _ *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
 	return nil, nil, nil
+}
+
+// CreateAccountCapabilityDetails advertises that HubSpot account creation is invitation-based;
+// the invited user sets their own password, so no password is managed by the connector.
+func (u *userResourceType) CreateAccountCapabilityDetails(_ context.Context) (*v2.CredentialDetailsAccountProvisioning, annotations.Annotations, error) {
+	return v2.CredentialDetailsAccountProvisioning_builder{
+		SupportedCredentialOptions: []v2.CapabilityDetailCredentialOption{
+			v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_NO_PASSWORD,
+		},
+		PreferredCredentialOption: v2.CapabilityDetailCredentialOption_CAPABILITY_DETAIL_CREDENTIAL_OPTION_NO_PASSWORD,
+	}.Build(), nil, nil
+}
+
+// primaryEmailFromAccountInfo returns the best email from AccountInfo:
+// primary email > first email > login.
+func primaryEmailFromAccountInfo(accountInfo *v2.AccountInfo) string {
+	for _, e := range accountInfo.GetEmails() {
+		if e.GetIsPrimary() {
+			return e.GetAddress()
+		}
+	}
+	if emails := accountInfo.GetEmails(); len(emails) > 0 {
+		return emails[0].GetAddress()
+	}
+	return accountInfo.GetLogin()
+}
+
+// CreateAccount invites a new user to the HubSpot portal by sending them an invitation email.
+func (u *userResourceType) CreateAccount(
+	ctx context.Context,
+	accountInfo *v2.AccountInfo,
+	_ *v2.LocalCredentialOptions,
+) (connectorbuilder.CreateAccountResponse, []*v2.PlaintextData, annotations.Annotations, error) {
+	email := primaryEmailFromAccountInfo(accountInfo)
+	if email == "" {
+		return nil, nil, nil, fmt.Errorf("baton-hubspot: no email address found in account info")
+	}
+
+	opts := hubspot.InviteUserOptions{SendWelcomeEmail: true}
+	if profile := accountInfo.GetProfile(); profile != nil {
+		fields := profile.GetFields()
+		opts.FirstName = stringFromProfileField(fields, profileFieldFirstName)
+		opts.LastName = stringFromProfileField(fields, profileFieldLastName)
+		opts.RoleID = stringFromProfileField(fields, profileFieldRoleID)
+		opts.PrimaryTeamID = stringFromProfileField(fields, profileFieldPrimaryTeamID)
+		opts.SecondaryTeamIDs = stringListFromProfileField(fields, profileFieldSecondaryTeamIDs)
+		opts.SendWelcomeEmail = boolFromProfileField(fields, profileFieldSendWelcomeEmail, true)
+	}
+
+	user, annos, err := u.client.InviteUser(ctx, email, opts)
+	if err != nil {
+		if s, ok := status.FromError(err); ok && s.Code() == codes.Code(409) {
+			return v2.CreateAccountResponse_AlreadyExistsResult_builder{
+				IsCreateAccountResult: true,
+			}.Build(), nil, annos, nil
+		}
+		return nil, nil, nil, fmt.Errorf("baton-hubspot: failed to invite user: %w", err)
+	}
+
+	resource, resourceAnnotations, err := u.userResource(ctx, user, nil, nil)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("baton-hubspot: failed to build user resource: %w", err)
+	}
+	annos.Merge(resourceAnnotations...)
+
+	return v2.CreateAccountResponse_SuccessResult_builder{
+		IsCreateAccountResult: true,
+		Resource:              resource,
+	}.Build(), nil, annos, nil
+}
+
+// Delete removes a user from the HubSpot portal via the Settings API.
+func (u *userResourceType) Delete(ctx context.Context, resourceId *v2.ResourceId, _ *v2.ResourceId) (annotations.Annotations, error) {
+	annos, err := u.client.DeleteUser(ctx, resourceId.Resource)
+	if err != nil {
+		return nil, fmt.Errorf("baton-hubspot: failed to delete user: %w", err)
+	}
+	return annos, nil
 }
 
 func userBuilder(client *hubspot.Client, userStatus bool) *userResourceType {

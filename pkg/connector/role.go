@@ -32,8 +32,8 @@ func (r *roleResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 func roleResource(role *hubspot.Role, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
 	displayName := titleCase(role.Name)
 	profile := map[string]interface{}{
-		"role_id":   role.Id,
-		"role_name": displayName,
+		profileFieldRoleID: role.Id,
+		"role_name":        displayName,
 	}
 
 	roleTraitOptions := []rs.RoleTraitOption{
@@ -128,7 +128,7 @@ func (r *roleResourceType) Grants(ctx context.Context, resource *v2.Resource, op
 		return nil, nil, err
 	}
 
-	roleId, ok := rs.GetProfileStringValue(roleTrait.Profile, "role_id")
+	roleId, ok := rs.GetProfileStringValue(roleTrait.Profile, profileFieldRoleID)
 	if !ok {
 		return nil, nil, fmt.Errorf("hubspot-connector: error parsing role id from role profile")
 	}

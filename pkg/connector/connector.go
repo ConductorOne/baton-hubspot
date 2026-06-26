@@ -13,35 +13,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var (
-	resourceTypeUser = &v2.ResourceType{
-		Id:          "user",
-		DisplayName: "User",
-		Traits: []v2.ResourceType_Trait{
-			v2.ResourceType_TRAIT_USER,
-		},
-		Annotations: annotationsForUserResourceType(),
-	}
-	resourceTypeTeam = &v2.ResourceType{
-		Id:          "team",
-		DisplayName: "Team",
-		Traits: []v2.ResourceType_Trait{
-			v2.ResourceType_TRAIT_GROUP,
-		},
-	}
-	resourceTypeAccount = &v2.ResourceType{
-		Id:          "account",
-		DisplayName: "Account",
-	}
-	resourceTypeRole = &v2.ResourceType{
-		Id:          "role",
-		DisplayName: "Role",
-		Traits: []v2.ResourceType_Trait{
-			v2.ResourceType_TRAIT_ROLE,
-		},
-	}
-)
-
 type HubSpot struct {
 	client     *hubspot.Client
 	userStatus bool
@@ -58,9 +29,48 @@ func (hs *HubSpot) ResourceSyncers(ctx context.Context) []connectorbuilder.Resou
 
 // Metadata returns metadata about the connector.
 func (hs *HubSpot) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
-	return &v2.ConnectorMetadata{
-		DisplayName: "HubSpot",
-	}, nil
+	return v2.ConnectorMetadata_builder{
+		DisplayName:           "HubSpot",
+		AccountCreationSchema: accountCreationSchema(),
+	}.Build(), nil
+}
+
+func accountCreationSchema() *v2.ConnectorAccountCreationSchema {
+	strField := func(displayName, description, placeholder string, order int32) *v2.ConnectorAccountCreationSchema_Field {
+		return v2.ConnectorAccountCreationSchema_Field_builder{
+			DisplayName: displayName,
+			Description: description,
+			Placeholder: placeholder,
+			Required:    false,
+			Order:       order,
+			StringField: &v2.ConnectorAccountCreationSchema_StringField{},
+		}.Build()
+	}
+	defaultTrue := true
+	return v2.ConnectorAccountCreationSchema_builder{
+		FieldMap: map[string]*v2.ConnectorAccountCreationSchema_Field{
+			profileFieldFirstName:     strField("First Name", "The user's first name.", "Jane", 1),
+			profileFieldLastName:      strField("Last Name", "The user's last name.", "Doe", 2),
+			profileFieldRoleID:        strField("Role ID", "The ID of the role to assign to the user.", "", 3),
+			profileFieldPrimaryTeamID: strField("Primary Team ID", "The ID of the user's primary team.", "", 4),
+			profileFieldSecondaryTeamIDs: v2.ConnectorAccountCreationSchema_Field_builder{
+				DisplayName:     "Secondary Team IDs",
+				Description:     "IDs of additional teams to assign to the user.",
+				Required:        false,
+				Order:           5,
+				StringListField: &v2.ConnectorAccountCreationSchema_StringListField{},
+			}.Build(),
+			profileFieldSendWelcomeEmail: v2.ConnectorAccountCreationSchema_Field_builder{
+				DisplayName: "Send Welcome Email",
+				Description: "Send a welcome email to the new user upon invitation.",
+				Required:    false,
+				Order:       6,
+				BoolField: v2.ConnectorAccountCreationSchema_BoolField_builder{
+					DefaultValue: &defaultTrue,
+				}.Build(),
+			}.Build(),
+		},
+	}.Build()
 }
 
 // Validate hits the HubSpot API to verify that the credentials are valid.

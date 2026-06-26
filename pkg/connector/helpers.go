@@ -5,13 +5,22 @@ import (
 
 	"github.com/conductorone/baton-hubspot/pkg/hubspot"
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
-	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var ResourcesPageSize = 50
+
+const (
+	profileFieldFirstName        = "first_name"
+	profileFieldLastName         = "last_name"
+	profileFieldRoleID           = "role_id"
+	profileFieldPrimaryTeamID    = "primary_team_id"
+	profileFieldSecondaryTeamIDs = "secondary_team_ids"
+	profileFieldSendWelcomeEmail = "send_welcome_email"
+)
 
 type UsersPaginationToken struct {
 	Page string `json:"page"`
@@ -22,12 +31,6 @@ func titleCase(s string) string {
 	titleCaser := cases.Title(language.English)
 
 	return titleCaser.String(s)
-}
-
-func annotationsForUserResourceType() annotations.Annotations {
-	annos := annotations.Annotations{}
-	annos.Update(&v2.SkipEntitlementsAndGrants{})
-	return annos
 }
 
 func parsePageToken(i string, resourceID *v2.ResourceId) (*pagination.Bag, error) {
@@ -127,4 +130,36 @@ func getUserResourceId(userId string) *v2.ResourceId {
 		ResourceType: resourceTypeUser.Id,
 		Resource:     userId,
 	}
+}
+
+func stringFromProfileField(fields map[string]*structpb.Value, key string) string {
+	if v, ok := fields[key]; ok {
+		return v.GetStringValue()
+	}
+	return ""
+}
+
+func boolFromProfileField(fields map[string]*structpb.Value, key string, defaultVal bool) bool {
+	v, ok := fields[key]
+	if !ok {
+		return defaultVal
+	}
+	if _, isBool := v.GetKind().(*structpb.Value_BoolValue); !isBool {
+		return defaultVal
+	}
+	return v.GetBoolValue()
+}
+
+func stringListFromProfileField(fields map[string]*structpb.Value, key string) []string {
+	v, ok := fields[key]
+	if !ok {
+		return nil
+	}
+	var result []string
+	for _, item := range v.GetListValue().GetValues() {
+		if s := item.GetStringValue(); s != "" {
+			result = append(result, s)
+		}
+	}
+	return result
 }

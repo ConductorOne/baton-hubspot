@@ -4,12 +4,28 @@
     {
       "resourceType": {
         "id": "account",
-        "displayName": "Account"
+        "displayName": "Account",
+        "annotations": [
+          {
+            "@type": "type.googleapis.com/c1.connector.v2.CapabilityPermissions",
+            "permissions": [
+              {
+                "permission": "account-info.security.read"
+              }
+            ]
+          }
+        ]
       },
       "capabilities": [
         "CAPABILITY_SYNC"
       ],
-      "permissions": {}
+      "permissions": {
+        "permissions": [
+          {
+            "permission": "account-info.security.read"
+          }
+        ]
+      }
     },
     {
       "resourceType": {
@@ -17,13 +33,35 @@
         "displayName": "Role",
         "traits": [
           "TRAIT_ROLE"
+        ],
+        "annotations": [
+          {
+            "@type": "type.googleapis.com/c1.connector.v2.CapabilityPermissions",
+            "permissions": [
+              {
+                "permission": "settings.users"
+              },
+              {
+                "permission": "settings.users.write"
+              }
+            ]
+          }
         ]
       },
       "capabilities": [
         "CAPABILITY_SYNC",
         "CAPABILITY_PROVISION"
       ],
-      "permissions": {}
+      "permissions": {
+        "permissions": [
+          {
+            "permission": "settings.users"
+          },
+          {
+            "permission": "settings.users.write"
+          }
+        ]
+      }
     },
     {
       "resourceType": {
@@ -31,13 +69,41 @@
         "displayName": "Team",
         "traits": [
           "TRAIT_GROUP"
+        ],
+        "annotations": [
+          {
+            "@type": "type.googleapis.com/c1.connector.v2.CapabilityPermissions",
+            "permissions": [
+              {
+                "permission": "settings.users.teams"
+              },
+              {
+                "permission": "settings.users"
+              },
+              {
+                "permission": "settings.users.write"
+              }
+            ]
+          }
         ]
       },
       "capabilities": [
         "CAPABILITY_SYNC",
         "CAPABILITY_PROVISION"
       ],
-      "permissions": {}
+      "permissions": {
+        "permissions": [
+          {
+            "permission": "settings.users.teams"
+          },
+          {
+            "permission": "settings.users"
+          },
+          {
+            "permission": "settings.users.write"
+          }
+        ]
+      }
     },
     {
       "resourceType": {
@@ -49,18 +115,61 @@
         "annotations": [
           {
             "@type": "type.googleapis.com/c1.connector.v2.SkipEntitlementsAndGrants"
+          },
+          {
+            "@type": "type.googleapis.com/c1.connector.v2.CapabilityPermissions",
+            "permissions": [
+              {
+                "permission": "settings.users"
+              },
+              {
+                "permission": "account-info.security.read"
+              },
+              {
+                "permission": "crm.objects.users.read"
+              },
+              {
+                "permission": "settings.users.write"
+              }
+            ]
           }
         ]
       },
       "capabilities": [
-        "CAPABILITY_SYNC"
+        "CAPABILITY_SYNC",
+        "CAPABILITY_ACCOUNT_PROVISIONING",
+        "CAPABILITY_RESOURCE_DELETE"
       ],
-      "permissions": {}
+      "permissions": {
+        "permissions": [
+          {
+            "permission": "settings.users"
+          },
+          {
+            "permission": "account-info.security.read"
+          },
+          {
+            "permission": "crm.objects.users.read"
+          },
+          {
+            "permission": "settings.users.write"
+          }
+        ]
+      }
     }
   ],
   "connectorCapabilities": [
     "CAPABILITY_PROVISION",
-    "CAPABILITY_SYNC"
+    "CAPABILITY_SYNC",
+    "CAPABILITY_ACCOUNT_PROVISIONING",
+    "CAPABILITY_RESOURCE_DELETE"
   ],
-  "credentialDetails": {}
+  "credentialDetails": {
+    "capabilityAccountProvisioning": {
+      "supportedCredentialOptions": [
+        "CAPABILITY_DETAIL_CREDENTIAL_OPTION_NO_PASSWORD"
+      ],
+      "preferredCredentialOption": "CAPABILITY_DETAIL_CREDENTIAL_OPTION_NO_PASSWORD"
+    }
+  }
 }
