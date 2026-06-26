@@ -197,7 +197,7 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 			principal.Id.Resource,
 			&hubspot.UpdateUserPayload{
 				RoleId:        roleId,
-				PrimaryTeamId: teamId,
+				PrimaryTeamId: &teamId,
 			},
 		)
 		if err != nil {
@@ -260,11 +260,13 @@ func (t *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 			return annotations.New(&v2.GrantAlreadyRevoked{}), nil
 		}
 
+		empty := ""
 		annos, err = t.client.UpdateUser(
 			ctx,
 			principal.Id.Resource,
 			&hubspot.UpdateUserPayload{
-				RoleId: roleId,
+				RoleId:        roleId,
+				PrimaryTeamId: &empty,
 			},
 		)
 		if err != nil {

@@ -217,7 +217,7 @@ func (c *Client) GetRoles(ctx context.Context) ([]Role, annotations.Annotations,
 
 type UpdateUserPayload struct {
 	RoleId           string   `json:"roleId,omitempty"`
-	PrimaryTeamId    string   `json:"primaryTeamId,omitempty"`
+	PrimaryTeamId    *string  `json:"primaryTeamId,omitempty"`
 	SecondaryTeamIDs []string `json:"secondaryTeamIds,omitempty"`
 }
 
