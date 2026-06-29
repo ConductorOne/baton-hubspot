@@ -49,22 +49,30 @@ func accountCreationSchema() *v2.ConnectorAccountCreationSchema {
 	defaultTrue := true
 	return v2.ConnectorAccountCreationSchema_builder{
 		FieldMap: map[string]*v2.ConnectorAccountCreationSchema_Field{
-			profileFieldFirstName:     strField("First Name", "The user's first name.", "Jane", 1),
-			profileFieldLastName:      strField("Last Name", "The user's last name.", "Doe", 2),
-			profileFieldRoleID:        strField("Role ID", "The ID of the role to assign to the user.", "", 3),
-			profileFieldPrimaryTeamID: strField("Primary Team ID", "The ID of the user's primary team.", "", 4),
+			profileFieldEmail: v2.ConnectorAccountCreationSchema_Field_builder{
+				DisplayName: "Email",
+				Description: "The email address to invite to the HubSpot portal.",
+				Placeholder: "jane@example.com",
+				Required:    true,
+				Order:       1,
+				StringField: &v2.ConnectorAccountCreationSchema_StringField{},
+			}.Build(),
+			profileFieldFirstName:     strField("First Name", "The user's first name.", "Jane", 2),
+			profileFieldLastName:      strField("Last Name", "The user's last name.", "Doe", 3),
+			profileFieldRoleID:        strField("Role ID", "The ID of the role to assign to the user.", "", 4),
+			profileFieldPrimaryTeamID: strField("Primary Team ID", "The ID of the user's primary team.", "", 5),
 			profileFieldSecondaryTeamIDs: v2.ConnectorAccountCreationSchema_Field_builder{
 				DisplayName:     "Secondary Team IDs",
 				Description:     "IDs of additional teams to assign to the user.",
 				Required:        false,
-				Order:           5,
+				Order:           6,
 				StringListField: &v2.ConnectorAccountCreationSchema_StringListField{},
 			}.Build(),
 			profileFieldSendWelcomeEmail: v2.ConnectorAccountCreationSchema_Field_builder{
 				DisplayName: "Send Welcome Email",
 				Description: "Send a welcome email to the new user upon invitation.",
 				Required:    false,
-				Order:       6,
+				Order:       7,
 				BoolField: v2.ConnectorAccountCreationSchema_BoolField_builder{
 					DefaultValue: &defaultTrue,
 				}.Build(),

@@ -14,6 +14,7 @@ import (
 var ResourcesPageSize = 50
 
 const (
+	profileFieldEmail            = "email"
 	profileFieldFirstName        = "first_name"
 	profileFieldLastName         = "last_name"
 	profileFieldRoleID           = "role_id"

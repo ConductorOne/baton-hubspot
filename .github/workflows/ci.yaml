@@ -40,5 +40,5 @@ jobs:
         with:
           connector: ./baton-hubspot
           account-email: hs-test-user@mail.com
-          account-profile: '{"first_name": "CI", "last_name": "Test", "send_welcome_email": false}'
+          account-profile: '{"email": "hs-test-user@mail.com", "first_name": "CI", "last_name": "Test", "send_welcome_email": false}'
           search-method: email

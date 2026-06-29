@@ -55,7 +55,7 @@ func (c *userResourceType) userResource(ctx context.Context, user *hubspot.User,
 
 	lastLogin, annos, err := c.client.GetUserLastLogin(ctx, user.Id)
 	if err != nil {
-		if s, ok := status.FromError(err); ok && s.Code() == 403 {
+		if s, ok := status.FromError(err); ok && s.Code() == codes.PermissionDenied {
 			l := ctxzap.Extract(ctx)
 			l.Warn("baton-hubspot: failed to get last login activity: permission denied", zap.String("user_id", user.Id), zap.Error(err))
 		} else {
@@ -204,45 +204,35 @@ func (u *userResourceType) CreateAccountCapabilityDetails(_ context.Context) (*v
 	}.Build(), nil, nil
 }
 
-// primaryEmailFromAccountInfo returns the best email from AccountInfo:
-// primary email > first email > login.
-func primaryEmailFromAccountInfo(accountInfo *v2.AccountInfo) string {
-	for _, e := range accountInfo.GetEmails() {
-		if e.GetIsPrimary() {
-			return e.GetAddress()
-		}
-	}
-	if emails := accountInfo.GetEmails(); len(emails) > 0 {
-		return emails[0].GetAddress()
-	}
-	return accountInfo.GetLogin()
-}
-
 // CreateAccount invites a new user to the HubSpot portal by sending them an invitation email.
 func (u *userResourceType) CreateAccount(
 	ctx context.Context,
 	accountInfo *v2.AccountInfo,
 	_ *v2.LocalCredentialOptions,
 ) (connectorbuilder.CreateAccountResponse, []*v2.PlaintextData, annotations.Annotations, error) {
-	email := primaryEmailFromAccountInfo(accountInfo)
+	profile := accountInfo.GetProfile()
+	if profile == nil {
+		return nil, nil, nil, status.Error(codes.InvalidArgument, "baton-hubspot: account info has no profile")
+	}
+	fields := profile.GetFields()
+
+	email := stringFromProfileField(fields, profileFieldEmail)
 	if email == "" {
-		return nil, nil, nil, fmt.Errorf("baton-hubspot: no email address found in account info")
+		return nil, nil, nil, status.Error(codes.InvalidArgument, "baton-hubspot: email field is required")
 	}
 
-	opts := hubspot.InviteUserOptions{SendWelcomeEmail: true}
-	if profile := accountInfo.GetProfile(); profile != nil {
-		fields := profile.GetFields()
-		opts.FirstName = stringFromProfileField(fields, profileFieldFirstName)
-		opts.LastName = stringFromProfileField(fields, profileFieldLastName)
-		opts.RoleID = stringFromProfileField(fields, profileFieldRoleID)
-		opts.PrimaryTeamID = stringFromProfileField(fields, profileFieldPrimaryTeamID)
-		opts.SecondaryTeamIDs = stringListFromProfileField(fields, profileFieldSecondaryTeamIDs)
-		opts.SendWelcomeEmail = boolFromProfileField(fields, profileFieldSendWelcomeEmail, true)
+	opts := hubspot.InviteUserOptions{
+		SendWelcomeEmail: boolFromProfileField(fields, profileFieldSendWelcomeEmail, true),
+		FirstName:        stringFromProfileField(fields, profileFieldFirstName),
+		LastName:         stringFromProfileField(fields, profileFieldLastName),
+		RoleID:           stringFromProfileField(fields, profileFieldRoleID),
+		PrimaryTeamID:    stringFromProfileField(fields, profileFieldPrimaryTeamID),
+		SecondaryTeamIDs: stringListFromProfileField(fields, profileFieldSecondaryTeamIDs),
 	}
 
 	user, annos, err := u.client.InviteUser(ctx, email, opts)
 	if err != nil {
-		if s, ok := status.FromError(err); ok && s.Code() == codes.Code(409) {
+		if s, ok := status.FromError(err); ok && s.Code() == codes.AlreadyExists {
 			return v2.CreateAccountResponse_AlreadyExistsResult_builder{
 				IsCreateAccountResult: true,
 			}.Build(), nil, annos, nil

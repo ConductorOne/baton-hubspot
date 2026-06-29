@@ -3,7 +3,6 @@ package connector
 import (
 	"testing"
 
-	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -20,6 +19,7 @@ func TestAccountCreationSchema(t *testing.T) {
 		isList   bool
 		required bool
 	}{
+		{"email", false, true},
 		{"first_name", false, false},
 		{"last_name", false, false},
 		{"role_id", false, false},
@@ -45,56 +45,6 @@ func TestAccountCreationSchema(t *testing.T) {
 				t.Errorf("field %q: expected StringField, got something else", wf.key)
 			}
 		}
-	}
-}
-
-func TestPrimaryEmailFromAccountInfo(t *testing.T) {
-	tests := []struct {
-		name   string
-		info   *v2.AccountInfo
-		want   string
-	}{
-		{
-			name: "primary email preferred",
-			info: v2.AccountInfo_builder{
-				Emails: []*v2.AccountInfo_Email{
-					v2.AccountInfo_Email_builder{Address: "other@example.com", IsPrimary: false}.Build(),
-					v2.AccountInfo_Email_builder{Address: "primary@example.com", IsPrimary: true}.Build(),
-				},
-				Login: "login@example.com",
-			}.Build(),
-			want: "primary@example.com",
-		},
-		{
-			name: "first email when no primary",
-			info: v2.AccountInfo_builder{
-				Emails: []*v2.AccountInfo_Email{
-					v2.AccountInfo_Email_builder{Address: "first@example.com", IsPrimary: false}.Build(),
-					v2.AccountInfo_Email_builder{Address: "second@example.com", IsPrimary: false}.Build(),
-				},
-			}.Build(),
-			want: "first@example.com",
-		},
-		{
-			name: "login fallback when no emails",
-			info: v2.AccountInfo_builder{
-				Login: "login@example.com",
-			}.Build(),
-			want: "login@example.com",
-		},
-		{
-			name: "empty when no emails and no login",
-			info: v2.AccountInfo_builder{}.Build(),
-			want: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := primaryEmailFromAccountInfo(tt.info); got != tt.want {
-				t.Errorf("primaryEmailFromAccountInfo() = %q, want %q", got, tt.want)
-			}
-		})
 	}
 }
 

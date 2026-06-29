@@ -1,11 +1,8 @@
 package hubspot
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -13,6 +10,7 @@ import (
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -23,7 +21,7 @@ const EqualOperator = "EQ"
 const HSInternalUserId = "hs_internal_user_id"
 
 type Client struct {
-	httpClient  *http.Client
+	*uhttp.BaseHttpClient
 	accessToken string
 	baseURL     string
 }
@@ -111,9 +109,9 @@ func NewClient(accessToken string, httpClient *http.Client, baseURL string) *Cli
 		baseURL = DefaultBaseURL
 	}
 	return &Client{
-		accessToken: accessToken,
-		httpClient:  httpClient,
-		baseURL:     baseURL,
+		accessToken:    accessToken,
+		baseURL:        baseURL,
+		BaseHttpClient: uhttp.NewBaseHttpClient(httpClient),
 	}
 }
 
@@ -216,9 +214,9 @@ func (c *Client) GetRoles(ctx context.Context) ([]Role, annotations.Annotations,
 }
 
 type UpdateUserPayload struct {
-	RoleId           string   `json:"roleId,omitempty"`
-	PrimaryTeamId    *string  `json:"primaryTeamId,omitempty"`
-	SecondaryTeamIDs []string `json:"secondaryTeamIds,omitempty"`
+	RoleId           string    `json:"roleId,omitempty"`
+	PrimaryTeamId    *string   `json:"primaryTeamId,omitempty"`
+	SecondaryTeamIDs *[]string `json:"secondaryTeamIds,omitempty"`
 }
 
 // UpdateUser updates information about provided user.
@@ -273,10 +271,10 @@ func (c *Client) GetDeletedUsers(ctx context.Context, pageOptions GetUsersVars) 
 func (c *Client) DeleteUser(ctx context.Context, userId string) (annotations.Annotations, error) {
 	annos, err := c.delete(ctx, c.userURL(userId), nil)
 	if err != nil {
-		if s, ok := status.FromError(err); ok && s.Code() == 404 {
+		if s, ok := status.FromError(err); ok && s.Code() == codes.NotFound {
 			return annos, nil
 		}
-		return nil, fmt.Errorf("hubspot-connector: failed to delete user: %w", err)
+		return nil, fmt.Errorf("baton-hubspot: failed to delete user: %w", err)
 	}
 	return annos, nil
 }
@@ -370,56 +368,46 @@ func (c *Client) doRequest(
 	resourceResponse interface{},
 	queryParams url.Values,
 ) (annotations.Annotations, error) {
-	var body io.Reader
-
-	if data != nil {
-		jsonBody, err := json.Marshal(data)
-		if err != nil {
-			return nil, err
-		}
-
-		body = bytes.NewBuffer(jsonBody)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, urlAddress, body)
+	parsedURL, err := url.Parse(urlAddress)
 	if err != nil {
 		return nil, err
 	}
-
 	if queryParams != nil {
-		req.URL.RawQuery = queryParams.Encode()
+		parsedURL.RawQuery = queryParams.Encode()
 	}
 
-	req.Header.Add("Authorization", fmt.Sprint("Bearer ", c.accessToken))
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/json")
+	reqOptions := []uhttp.RequestOption{
+		uhttp.WithBearerToken(c.accessToken),
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	}
+	if data != nil {
+		reqOptions = append(reqOptions, uhttp.WithJSONBody(data))
+	}
 
-	rawResponse, err := c.httpClient.Do(req) //nolint:gosec,nolintlint // G704: URL constructed from trusted config
+	req, err := c.NewRequest(ctx, method, parsedURL, reqOptions...)
 	if err != nil {
 		return nil, err
 	}
 
-	defer rawResponse.Body.Close()
-
-	if rawResponse.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(rawResponse.Body)
-		return nil, status.Errorf(codes.Code(rawResponse.StatusCode), "Request failed: %s", string(bodyBytes)) //nolint:gosec // safe conversion: HTTP status code is always in range 0-599
-	}
-
+	var doOptions []uhttp.DoOption
 	if resourceResponse != nil {
-		if err := json.NewDecoder(rawResponse.Body).Decode(&resourceResponse); err != nil {
-			return nil, err
-		}
+		doOptions = append(doOptions, uhttp.WithJSONResponse(resourceResponse))
 	}
 
-	rateLimitData, err := extractRateLimitData(rawResponse)
+	resp, err := c.Do(req, doOptions...)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	rateLimitData, err := extractRateLimitData(resp)
 	if err != nil {
 		return nil, err
 	}
 
 	annos := annotations.Annotations{}
 	annos.WithRateLimiting(rateLimitData)
-
 	return annos, nil
 }
 

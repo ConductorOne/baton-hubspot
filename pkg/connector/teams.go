@@ -208,12 +208,15 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 			return nil, annotations.New(&v2.GrantAlreadyExists{}), nil
 		}
 
+		grantedTeams := make([]string, len(user.SecondaryTeamIDs)+1)
+		copy(grantedTeams, user.SecondaryTeamIDs)
+		grantedTeams[len(user.SecondaryTeamIDs)] = teamId
 		annos, err = t.client.UpdateUser(
 			ctx,
 			principal.Id.Resource,
 			&hubspot.UpdateUserPayload{
 				RoleId:           roleId,
-				SecondaryTeamIDs: append(user.SecondaryTeamIDs, teamId),
+				SecondaryTeamIDs: &grantedTeams,
 			},
 		)
 		if err != nil {
@@ -283,7 +286,7 @@ func (t *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 			principal.Id.Resource,
 			&hubspot.UpdateUserPayload{
 				RoleId:           roleId,
-				SecondaryTeamIDs: updatedTeams,
+				SecondaryTeamIDs: &updatedTeams,
 			},
 		)
 		if err != nil {
