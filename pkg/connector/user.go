@@ -57,7 +57,7 @@ func (c *userResourceType) userResource(ctx context.Context, user *hubspot.User,
 	if err != nil {
 		if s, ok := status.FromError(err); ok && s.Code() == codes.PermissionDenied {
 			l := ctxzap.Extract(ctx)
-			l.Warn("baton-hubspot: failed to get last login activity: permission denied", zap.String("user_id", user.Id), zap.Error(err))
+			l.Debug("baton-hubspot: failed to get last login activity: permission denied", zap.String("user_id", user.Id), zap.Error(err))
 		} else {
 			return nil, annos, err
 		}

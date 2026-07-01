@@ -40,6 +40,25 @@ type Role struct {
 	Name string `json:"name"`
 }
 
+type InviteUserOptions struct {
+	FirstName        string
+	LastName         string
+	RoleID           string
+	PrimaryTeamID    string
+	SecondaryTeamIDs []string
+	SendWelcomeEmail bool
+}
+
+type userInvitePayload struct {
+	Email            string   `json:"email"`
+	SendWelcomeEmail bool     `json:"sendWelcomeEmail"`
+	FirstName        string   `json:"firstName,omitempty"`
+	LastName         string   `json:"lastName,omitempty"`
+	RoleID           string   `json:"roleId,omitempty"`
+	PrimaryTeamID    string   `json:"primaryTeamId,omitempty"`
+	SecondaryTeamIDs []string `json:"secondaryTeamIds,omitempty"`
+}
+
 func NewRole(id, name string) *Role {
 	return &Role{
 		BaseResource: BaseResource{

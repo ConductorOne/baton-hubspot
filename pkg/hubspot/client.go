@@ -23,35 +23,35 @@ const HSInternalUserId = "hs_internal_user_id"
 type Client struct {
 	*uhttp.BaseHttpClient
 	accessToken string
-	baseURL     string
+	baseURL     *url.URL
 }
 
 func (c *Client) usersURL() string {
-	return c.baseURL + "settings/v3/users"
+	return c.baseURL.JoinPath("settings/v3/users").String()
 }
 
 func (c *Client) userURL(userID string) string {
-	return fmt.Sprintf(c.baseURL+"settings/v3/users/%s", userID)
+	return c.baseURL.JoinPath("settings/v3/users", userID).String()
 }
 
 func (c *Client) teamsURL() string {
-	return c.baseURL + "settings/v3/users/teams"
+	return c.baseURL.JoinPath("settings/v3/users/teams").String()
 }
 
 func (c *Client) rolesURL() string {
-	return c.baseURL + "settings/v3/users/roles"
+	return c.baseURL.JoinPath("settings/v3/users/roles").String()
 }
 
 func (c *Client) accountURL() string {
-	return c.baseURL + "account-info/v3/details"
+	return c.baseURL.JoinPath("account-info/v3/details").String()
 }
 
 func (c *Client) searchUserObjectURL() string {
-	return c.baseURL + "crm/v3/objects/users/search"
+	return c.baseURL.JoinPath("crm/v3/objects/users/search").String()
 }
 
 func (c *Client) accountLastLoginURL() string {
-	return c.baseURL + "account-info/v3/activity/login"
+	return c.baseURL.JoinPath("account-info/v3/activity/login").String()
 }
 
 type UsersResponse struct {
@@ -104,15 +104,19 @@ type SearchUserObjectPayload struct {
 	After        string    `json:"after,omitempty"`
 }
 
-func NewClient(accessToken string, httpClient *http.Client, baseURL string) *Client {
+func NewClient(accessToken string, httpClient *http.Client, baseURL string) (*Client, error) {
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
 	}
+	parsedBaseURL, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("baton-hubspot: invalid base URL: %w", err)
+	}
 	return &Client{
 		accessToken:    accessToken,
-		baseURL:        baseURL,
+		baseURL:        parsedBaseURL,
 		BaseHttpClient: uhttp.NewBaseHttpClient(httpClient),
-	}
+	}, nil
 }
 
 func setupPaginationQuery(query url.Values, limit int, after string) url.Values {
@@ -277,25 +281,6 @@ func (c *Client) DeleteUser(ctx context.Context, userId string) (annotations.Ann
 		return nil, fmt.Errorf("baton-hubspot: failed to delete user: %w", err)
 	}
 	return annos, nil
-}
-
-type InviteUserOptions struct {
-	FirstName        string
-	LastName         string
-	RoleID           string
-	PrimaryTeamID    string
-	SecondaryTeamIDs []string
-	SendWelcomeEmail bool
-}
-
-type userInvitePayload struct {
-	Email            string   `json:"email"`
-	SendWelcomeEmail bool     `json:"sendWelcomeEmail"`
-	FirstName        string   `json:"firstName,omitempty"`
-	LastName         string   `json:"lastName,omitempty"`
-	RoleID           string   `json:"roleId,omitempty"`
-	PrimaryTeamID    string   `json:"primaryTeamId,omitempty"`
-	SecondaryTeamIDs []string `json:"secondaryTeamIds,omitempty"`
 }
 
 // InviteUser sends an invitation to the provided email address, creating a new HubSpot portal user.

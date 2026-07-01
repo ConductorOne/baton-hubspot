@@ -100,8 +100,13 @@ func New(ctx context.Context, accessToken string, userStatus bool, baseURL strin
 		return nil, err
 	}
 
+	client, err := hubspot.NewClient(accessToken, httpClient, baseURL)
+	if err != nil {
+		return nil, err
+	}
+
 	return &HubSpot{
-		client:     hubspot.NewClient(accessToken, httpClient, baseURL),
+		client:     client,
 		userStatus: userStatus,
 	}, nil
 }
