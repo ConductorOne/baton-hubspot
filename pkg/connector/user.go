@@ -37,7 +37,13 @@ func (u *userResourceType) ResourceType(_ context.Context) *v2.ResourceType {
 }
 
 // userResource creates a new connector resource for a HubSpot user.
-func (c *userResourceType) userResource(ctx context.Context, user *hubspot.User, parentResourceID *v2.ResourceId, deletedSet map[string]bool) (*v2.Resource, annotations.Annotations, error) {
+func (c *userResourceType) userResource(
+	ctx context.Context,
+	user *hubspot.User,
+	parentResourceID *v2.ResourceId,
+	deletedSet map[string]bool,
+	skipLastLogin bool,
+) (*v2.Resource, annotations.Annotations, error) {
 	profile := map[string]interface{}{
 		"login":   user.Email,
 		"user_id": user.Id,
@@ -53,17 +59,22 @@ func (c *userResourceType) userResource(ctx context.Context, user *hubspot.User,
 		rs.WithStatus(userState),
 	}
 
-	lastLogin, annos, err := c.client.GetUserLastLogin(ctx, user.Id)
-	if err != nil {
-		if s, ok := status.FromError(err); ok && s.Code() == codes.PermissionDenied {
-			l := ctxzap.Extract(ctx)
-			l.Debug("baton-hubspot: failed to get last login activity: permission denied", zap.String("user_id", user.Id), zap.Error(err))
-		} else {
-			return nil, annos, err
+	var annos annotations.Annotations
+	if !skipLastLogin {
+		var err error
+		lastLogin, lastLoginAnnos, err := c.client.GetUserLastLogin(ctx, user.Id)
+		annos = lastLoginAnnos
+		if err != nil {
+			if s, ok := status.FromError(err); ok && s.Code() == codes.PermissionDenied {
+				l := ctxzap.Extract(ctx)
+				l.Debug("baton-hubspot: failed to get last login activity: permission denied", zap.String("user_id", user.Id), zap.Error(err))
+			} else {
+				return nil, annos, err
+			}
 		}
-	}
-	if lastLogin != nil {
-		userTraitOptions = append(userTraitOptions, rs.WithLastLogin(*lastLogin))
+		if lastLogin != nil {
+			userTraitOptions = append(userTraitOptions, rs.WithLastLogin(*lastLogin))
+		}
 	}
 
 	resource, err := rs.NewUserResource(
@@ -168,7 +179,7 @@ func (u *userResourceType) List(ctx context.Context, parentId *v2.ResourceId, op
 		var rv []*v2.Resource
 		for _, user := range users {
 			userCopy := user
-			ur, userAnnotations, err := u.userResource(ctx, &userCopy, parentId, deletedSet)
+			ur, userAnnotations, err := u.userResource(ctx, &userCopy, parentId, deletedSet, false)
 			if err != nil {
 				return nil, &rs.SyncOpResults{Annotations: userAnnotations}, err
 			}
@@ -212,13 +223,13 @@ func (u *userResourceType) CreateAccount(
 ) (connectorbuilder.CreateAccountResponse, []*v2.PlaintextData, annotations.Annotations, error) {
 	profile := accountInfo.GetProfile()
 	if profile == nil {
-		return nil, nil, nil, status.Error(codes.InvalidArgument, "baton-hubspot: account info has no profile")
+		return nil, nil, nil, status.Error(codes.InvalidArgument, "hubspot-connector: account info has no profile")
 	}
 	fields := profile.GetFields()
 
 	email := stringFromProfileField(fields, profileFieldEmail)
 	if email == "" {
-		return nil, nil, nil, status.Error(codes.InvalidArgument, "baton-hubspot: email field is required")
+		return nil, nil, nil, status.Error(codes.InvalidArgument, "hubspot-connector: email field is required")
 	}
 
 	opts := hubspot.InviteUserOptions{
@@ -237,12 +248,12 @@ func (u *userResourceType) CreateAccount(
 				IsCreateAccountResult: true,
 			}.Build(), nil, annos, nil
 		}
-		return nil, nil, nil, fmt.Errorf("baton-hubspot: failed to invite user: %w", err)
+		return nil, nil, nil, fmt.Errorf("hubspot-connector: failed to invite user: %w", err)
 	}
 
-	resource, resourceAnnotations, err := u.userResource(ctx, user, nil, nil)
+	resource, resourceAnnotations, err := u.userResource(ctx, user, nil, nil, true)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("baton-hubspot: failed to build user resource: %w", err)
+		return nil, nil, nil, fmt.Errorf("hubspot-connector: failed to build user resource: %w", err)
 	}
 	annos.Merge(resourceAnnotations...)
 
@@ -256,7 +267,10 @@ func (u *userResourceType) CreateAccount(
 func (u *userResourceType) Delete(ctx context.Context, resourceId *v2.ResourceId, _ *v2.ResourceId) (annotations.Annotations, error) {
 	annos, err := u.client.DeleteUser(ctx, resourceId.Resource)
 	if err != nil {
-		return nil, fmt.Errorf("baton-hubspot: failed to delete user: %w", err)
+		if s, ok := status.FromError(err); ok && s.Code() == codes.NotFound {
+			return annotations.New(&v2.ResourceDoesNotExist{}), nil
+		}
+		return nil, fmt.Errorf("hubspot-connector: failed to delete user: %w", err)
 	}
 	return annos, nil
 }

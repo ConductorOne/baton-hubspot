@@ -11,8 +11,6 @@ import (
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -27,19 +25,19 @@ type Client struct {
 }
 
 func (c *Client) usersURL() string {
-	return c.baseURL.JoinPath("settings/v3/users").String()
+	return c.baseURL.JoinPath("settings/users/2026-03").String()
 }
 
 func (c *Client) userURL(userID string) string {
-	return c.baseURL.JoinPath("settings/v3/users", userID).String()
+	return c.baseURL.JoinPath("settings/users/2026-03", userID).String()
 }
 
 func (c *Client) teamsURL() string {
-	return c.baseURL.JoinPath("settings/v3/users/teams").String()
+	return c.baseURL.JoinPath("settings/users/2026-03/teams").String()
 }
 
 func (c *Client) rolesURL() string {
-	return c.baseURL.JoinPath("settings/v3/users/roles").String()
+	return c.baseURL.JoinPath("settings/users/2026-03/roles").String()
 }
 
 func (c *Client) accountURL() string {
@@ -271,14 +269,11 @@ func (c *Client) GetDeletedUsers(ctx context.Context, pageOptions GetUsersVars) 
 	return ids, "", annos, nil
 }
 
-// DeleteUser removes a user from the HubSpot portal via the Settings API (idempotent: 404 treated as success).
+// DeleteUser removes a user from the HubSpot portal via the Settings API.
 func (c *Client) DeleteUser(ctx context.Context, userId string) (annotations.Annotations, error) {
 	annos, err := c.delete(ctx, c.userURL(userId), nil)
 	if err != nil {
-		if s, ok := status.FromError(err); ok && s.Code() == codes.NotFound {
-			return annos, nil
-		}
-		return nil, fmt.Errorf("baton-hubspot: failed to delete user: %w", err)
+		return nil, err
 	}
 	return annos, nil
 }

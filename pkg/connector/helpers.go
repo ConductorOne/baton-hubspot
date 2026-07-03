@@ -114,17 +114,6 @@ func containsTeam(tIDs []string, targetTeam string) bool {
 	return false
 }
 
-func removeTeam(tIDs []string, targetTeam string) []string {
-	tv := make([]string, 0, len(tIDs))
-
-	for _, id := range tIDs {
-		if id != targetTeam {
-			tv = append(tv, id)
-		}
-	}
-
-	return tv
-}
 
 func getUserResourceId(userId string) *v2.ResourceId {
 	return &v2.ResourceId{
