@@ -8,11 +8,12 @@ sidebarTitle: "HubSpot"
 
 ## Capabilities
 
-| Resource | Sync | Provision |
-| :--- | :--- | :--- |
-| Accounts | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> |  |
-| Teams | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> |
-| Roles* | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> |
+| Resource | Sync | Provision | Lifecycle actions |
+| :--- | :--- | :--- | :--- |
+| Accounts | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> |  |  |
+| Teams | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> |  |
+| Roles* | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> |  |
+| Users | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> | <Icon icon="square-check" iconType="solid"  color="#c937ae"/> |  |
 
 *HubSpot roles are only supported on the free or higher versions of **Marketing Hub, Sales Hub, Service Hub,** and **Content Hub**. Role syncing and provisioning via this connector are not available when using any other HubSpot product or version. 
 
@@ -51,7 +52,7 @@ On the **Scopes** tab, select the following scopes:
   - `oauth` - Request
 </Step>
 <Step>
-**Optional.** If you want to use C1 to provision roles, search for and add either `settings.users.write` OR `crm.objects.users.write`.
+**Optional.** If you want to use C1 to provision users (invite, deactivate) or manage team/role membership, add `settings.users.write`.
 </Step>
 <Step>
 **Optional.** To sync user status, search for and add the `crm.objects.users.read` scope to the app.

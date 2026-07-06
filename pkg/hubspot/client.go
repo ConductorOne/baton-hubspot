@@ -1,11 +1,8 @@
 package hubspot
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -13,8 +10,7 @@ import (
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -23,37 +19,37 @@ const EqualOperator = "EQ"
 const HSInternalUserId = "hs_internal_user_id"
 
 type Client struct {
-	httpClient  *http.Client
+	*uhttp.BaseHttpClient
 	accessToken string
-	baseURL     string
+	baseURL     *url.URL
 }
 
 func (c *Client) usersURL() string {
-	return c.baseURL + "settings/v3/users"
+	return c.baseURL.JoinPath("settings/users/2026-03").String()
 }
 
 func (c *Client) userURL(userID string) string {
-	return fmt.Sprintf(c.baseURL+"settings/v3/users/%s", userID)
+	return c.baseURL.JoinPath("settings/users/2026-03", userID).String()
 }
 
 func (c *Client) teamsURL() string {
-	return c.baseURL + "settings/v3/users/teams"
+	return c.baseURL.JoinPath("settings/users/2026-03/teams").String()
 }
 
 func (c *Client) rolesURL() string {
-	return c.baseURL + "settings/v3/users/roles"
+	return c.baseURL.JoinPath("settings/users/2026-03/roles").String()
 }
 
 func (c *Client) accountURL() string {
-	return c.baseURL + "account-info/v3/details"
+	return c.baseURL.JoinPath("account-info/v3/details").String()
 }
 
 func (c *Client) searchUserObjectURL() string {
-	return c.baseURL + "crm/v3/objects/users/search"
+	return c.baseURL.JoinPath("crm/v3/objects/users/search").String()
 }
 
 func (c *Client) accountLastLoginURL() string {
-	return c.baseURL + "account-info/v3/activity/login"
+	return c.baseURL.JoinPath("account-info/v3/activity/login").String()
 }
 
 type UsersResponse struct {
@@ -106,15 +102,19 @@ type SearchUserObjectPayload struct {
 	After        string    `json:"after,omitempty"`
 }
 
-func NewClient(accessToken string, httpClient *http.Client, baseURL string) *Client {
+func NewClient(accessToken string, httpClient *http.Client, baseURL string) (*Client, error) {
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
 	}
-	return &Client{
-		accessToken: accessToken,
-		httpClient:  httpClient,
-		baseURL:     baseURL,
+	parsedBaseURL, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("baton-hubspot: invalid base URL: %w", err)
 	}
+	return &Client{
+		accessToken:    accessToken,
+		baseURL:        parsedBaseURL,
+		BaseHttpClient: uhttp.NewBaseHttpClient(httpClient),
+	}, nil
 }
 
 func setupPaginationQuery(query url.Values, limit int, after string) url.Values {
@@ -216,9 +216,9 @@ func (c *Client) GetRoles(ctx context.Context) ([]Role, annotations.Annotations,
 }
 
 type UpdateUserPayload struct {
-	RoleId           string   `json:"roleId,omitempty"`
-	PrimaryTeamId    string   `json:"primaryTeamId,omitempty"`
-	SecondaryTeamIDs []string `json:"secondaryTeamIds,omitempty"`
+	RoleId           string    `json:"roleId,omitempty"`
+	PrimaryTeamId    *string   `json:"primaryTeamId,omitempty"`
+	SecondaryTeamIDs *[]string `json:"secondaryTeamIds,omitempty"`
 }
 
 // UpdateUser updates information about provided user.
@@ -269,6 +269,35 @@ func (c *Client) GetDeletedUsers(ctx context.Context, pageOptions GetUsersVars) 
 	return ids, "", annos, nil
 }
 
+// DeleteUser removes a user from the HubSpot portal via the Settings API.
+func (c *Client) DeleteUser(ctx context.Context, userId string) (annotations.Annotations, error) {
+	annos, err := c.delete(ctx, c.userURL(userId), nil)
+	if err != nil {
+		return nil, err
+	}
+	return annos, nil
+}
+
+// InviteUser sends an invitation to the provided email address, creating a new HubSpot portal user.
+// Returns the created user. The caller is responsible for handling 409 (user already exists).
+func (c *Client) InviteUser(ctx context.Context, email string, opts InviteUserOptions) (*User, annotations.Annotations, error) {
+	payload := userInvitePayload{
+		Email:            email,
+		SendWelcomeEmail: opts.SendWelcomeEmail,
+		FirstName:        opts.FirstName,
+		LastName:         opts.LastName,
+		RoleID:           opts.RoleID,
+		PrimaryTeamID:    opts.PrimaryTeamID,
+		SecondaryTeamIDs: opts.SecondaryTeamIDs,
+	}
+	var user User
+	annos, err := c.post(ctx, c.usersURL(), payload, &user)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &user, annos, nil
+}
+
 // GetUserLastLogin returns the last login time for a user.
 // The /account-info/v3/activity/login endpoint requires account-info.security.read scope.
 func (c *Client) GetUserLastLogin(ctx context.Context, userId string) (*time.Time, annotations.Annotations, error) {
@@ -307,6 +336,10 @@ func (c *Client) post(ctx context.Context, url string, data interface{}, resourc
 	return c.doRequest(ctx, url, http.MethodPost, data, resourceResponse, nil)
 }
 
+func (c *Client) delete(ctx context.Context, url string, queryParams url.Values) (annotations.Annotations, error) {
+	return c.doRequest(ctx, url, http.MethodDelete, nil, nil, queryParams)
+}
+
 func (c *Client) doRequest(
 	ctx context.Context,
 	urlAddress string,
@@ -315,53 +348,46 @@ func (c *Client) doRequest(
 	resourceResponse interface{},
 	queryParams url.Values,
 ) (annotations.Annotations, error) {
-	var body io.Reader
-
-	if data != nil {
-		jsonBody, err := json.Marshal(data)
-		if err != nil {
-			return nil, err
-		}
-
-		body = bytes.NewBuffer(jsonBody)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, urlAddress, body)
+	parsedURL, err := url.Parse(urlAddress)
 	if err != nil {
 		return nil, err
 	}
-
 	if queryParams != nil {
-		req.URL.RawQuery = queryParams.Encode()
+		parsedURL.RawQuery = queryParams.Encode()
 	}
 
-	req.Header.Add("Authorization", fmt.Sprint("Bearer ", c.accessToken))
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/json")
+	reqOptions := []uhttp.RequestOption{
+		uhttp.WithBearerToken(c.accessToken),
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	}
+	if data != nil {
+		reqOptions = append(reqOptions, uhttp.WithJSONBody(data))
+	}
 
-	rawResponse, err := c.httpClient.Do(req) //nolint:gosec,nolintlint // G704: URL constructed from trusted config
+	req, err := c.NewRequest(ctx, method, parsedURL, reqOptions...)
 	if err != nil {
 		return nil, err
 	}
 
-	defer rawResponse.Body.Close()
-
-	if rawResponse.StatusCode >= 300 {
-		return nil, status.Error(codes.Code(rawResponse.StatusCode), "Request failed") //nolint:gosec // safe conversion: HTTP status code is always in range 0-599
+	var doOptions []uhttp.DoOption
+	if resourceResponse != nil {
+		doOptions = append(doOptions, uhttp.WithJSONResponse(resourceResponse))
 	}
 
-	if err := json.NewDecoder(rawResponse.Body).Decode(&resourceResponse); err != nil {
+	resp, err := c.Do(req, doOptions...)
+	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
-	rateLimitData, err := extractRateLimitData(rawResponse)
+	rateLimitData, err := extractRateLimitData(resp)
 	if err != nil {
 		return nil, err
 	}
 
 	annos := annotations.Annotations{}
 	annos.WithRateLimiting(rateLimitData)
-
 	return annos, nil
 }
 

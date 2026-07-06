@@ -189,7 +189,7 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 	switch entitlementId {
 	case primaryMemberEntitlement:
 		if user.TeamId == teamId {
-			return nil, nil, fmt.Errorf("hubspot-connector: user is already a primary member of team %s", teamId)
+			return nil, annotations.New(&v2.GrantAlreadyExists{}), nil
 		}
 
 		annos, err = t.client.UpdateUser(
@@ -197,7 +197,7 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 			principal.Id.Resource,
 			&hubspot.UpdateUserPayload{
 				RoleId:        roleId,
-				PrimaryTeamId: teamId,
+				PrimaryTeamId: &teamId,
 			},
 		)
 		if err != nil {
@@ -205,15 +205,18 @@ func (t *teamResourceType) Grant(ctx context.Context, principal *v2.Resource, en
 		}
 	case secondaryMemberEntitlement:
 		if containsTeam(user.SecondaryTeamIDs, teamId) {
-			return nil, nil, fmt.Errorf("hubspot-connector: user is already a secondary member of team %s", teamId)
+			return nil, annotations.New(&v2.GrantAlreadyExists{}), nil
 		}
 
+		grantedTeams := make([]string, len(user.SecondaryTeamIDs)+1)
+		copy(grantedTeams, user.SecondaryTeamIDs)
+		grantedTeams[len(user.SecondaryTeamIDs)] = teamId
 		annos, err = t.client.UpdateUser(
 			ctx,
 			principal.Id.Resource,
 			&hubspot.UpdateUserPayload{
 				RoleId:           roleId,
-				SecondaryTeamIDs: append(user.SecondaryTeamIDs, teamId),
+				SecondaryTeamIDs: &grantedTeams,
 			},
 		)
 		if err != nil {
@@ -231,7 +234,7 @@ func (t *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 	entitlement := grant.Entitlement
 
 	if principal.Id.ResourceType != resourceTypeUser.Id {
-		l.Warn(
+		l.Debug(
 			"hubspot-connector: only users can have team membership revoked",
 			zap.String("principal_id", principal.Id.Resource),
 			zap.String("principal_type", principal.Id.ResourceType),
@@ -257,36 +260,25 @@ func (t *teamResourceType) Revoke(ctx context.Context, grant *v2.Grant) (annotat
 	switch entitlementId {
 	case primaryMemberEntitlement:
 		if user.TeamId != teamId {
-			return nil, fmt.Errorf("hubspot-connector: user is not a primary member of team %s", teamId)
+			return annotations.New(&v2.GrantAlreadyRevoked{}), nil
 		}
 
+		empty := ""
 		annos, err = t.client.UpdateUser(
 			ctx,
 			principal.Id.Resource,
 			&hubspot.UpdateUserPayload{
-				RoleId: roleId,
+				RoleId:        roleId,
+				PrimaryTeamId: &empty,
 			},
 		)
 		if err != nil {
 			return nil, fmt.Errorf("hubspot-connector: failed to update user: %w", err)
 		}
 	case secondaryMemberEntitlement:
-		if !containsTeam(user.SecondaryTeamIDs, teamId) {
-			return nil, fmt.Errorf("hubspot-connector: user is not a secondary member of team %s", teamId)
-		}
-
-		updatedTeams := removeTeam(user.SecondaryTeamIDs, teamId)
-		annos, err = t.client.UpdateUser(
-			ctx,
-			principal.Id.Resource,
-			&hubspot.UpdateUserPayload{
-				RoleId:           roleId,
-				SecondaryTeamIDs: updatedTeams,
-			},
-		)
-		if err != nil {
-			return nil, fmt.Errorf("hubspot-connector: failed to updated user: %w", err)
-		}
+		// HubSpot's API does not support removing users from secondary teams — this is a known
+		// platform limitation: https://community.hubspot.com/t/remove-a-user-from-a-primary-or-secondary-team-via-api/52454
+		return nil, fmt.Errorf("hubspot-connector: revoking secondary team membership is not supported by the HubSpot API")
 	}
 
 	return annos, nil
