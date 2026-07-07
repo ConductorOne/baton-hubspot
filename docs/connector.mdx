@@ -17,6 +17,25 @@ sidebarTitle: "HubSpot"
 
 *HubSpot roles are only supported on the free or higher versions of **Marketing Hub, Sales Hub, Service Hub,** and **Content Hub**. Role syncing and provisioning via this connector are not available when using any other HubSpot product or version. 
 
+## Provisioning
+
+C1 can provision access in HubSpot using this connector. Provisioning requires the `settings.users.write` scope on the private app (see the credentials steps below) and that the connector runs with provisioning enabled (`BATON_PROVISIONING=true` when self-hosted).
+
+| Operation | Supported | Notes |
+| :--- | :--- | :--- |
+| Grant / revoke a **Role** | Yes | Assigns or clears the user's role. The **Super Admin** role cannot be assigned through the HubSpot API. |
+| Grant a **Team** membership (primary or secondary) | Yes | Adds the user to the team as a primary or secondary member. |
+| Revoke a **primary Team** membership | Yes | |
+| Revoke a **secondary Team** membership | No | The HubSpot API does not support removing a secondary team membership. Remove it manually in HubSpot. |
+| Create a **User** account | Yes | Invites the user to the HubSpot portal by email. No password is set — the user completes setup from the invitation email. |
+| Delete a **User** account | Yes | Removes the user from the HubSpot portal. |
+
+<Note>
+HubSpot provides no API to re-enable a deactivated user. To restore access for a user who was deactivated in HubSpot, delete the account and re-invite it. This creates a new account and does not preserve the previous user's history.
+</Note>
+
+Deactivated HubSpot users continue to appear in C1 with their existing entitlement grants, because the account still exists in HubSpot. Enable **user status** syncing (see the configuration steps below) to have these users flagged as disabled in C1.
+
 ## Gather HubSpot credentials 
 
 Configuring the connector requires you to pass in credentials generated in HubSpot. Gather these credentials before you move on. 
