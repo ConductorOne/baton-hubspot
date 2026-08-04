@@ -54,9 +54,7 @@ func (c *userResourceType) userResource(
 	}
 
 	userTraitOptions := []rs.UserTraitOption{
-		rs.WithUserProfile(profile),
 		rs.WithEmail(user.Email, true),
-		rs.WithStatus(userState),
 	}
 
 	var annos annotations.Annotations
@@ -83,6 +81,8 @@ func (c *userResourceType) userResource(
 		user.Id,
 		userTraitOptions,
 		rs.WithParentResourceID(parentResourceID),
+		rs.WithResourceProfile(profile),
+		rs.WithResourceStatus(v2.Status_ResourceStatus(userState), ""),
 	)
 	if err != nil {
 		return nil, annos, err

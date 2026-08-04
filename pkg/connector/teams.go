@@ -48,7 +48,8 @@ func teamResource(team *hubspot.Team, parentResourceID *v2.ResourceId) (*v2.Reso
 		team.Name,
 		resourceTypeTeam,
 		team.Id,
-		[]rs.GroupTraitOption{rs.WithGroupProfile(profile)},
+		nil,
+		rs.WithResourceProfile(profile),
 		rs.WithParentResourceID(parentResourceID),
 	)
 
@@ -115,19 +116,15 @@ func (t *teamResourceType) Entitlements(_ context.Context, resource *v2.Resource
 }
 
 func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, _ rs.SyncOpAttrs) ([]*v2.Grant, *rs.SyncOpResults, error) {
-	teamTrait, err := rs.GetGroupTrait(resource)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	var primaryUserIDs, secondaryUserIDs []string
+	profile := rs.GetProfile(resource)
 
-	primaryUserIDsString, ok := rs.GetProfileStringValue(teamTrait.Profile, "team_primary_users")
+	primaryUserIDsString, ok := rs.GetProfileStringValue(profile, "team_primary_users")
 	if ok {
 		primaryUserIDs = strings.Split(primaryUserIDsString, ",")
 	}
 
-	secondaryUserIDsString, ok := rs.GetProfileStringValue(teamTrait.Profile, "team_secondary_users")
+	secondaryUserIDsString, ok := rs.GetProfileStringValue(profile, "team_secondary_users")
 	if ok {
 		secondaryUserIDs = strings.Split(secondaryUserIDsString, ",")
 	}
