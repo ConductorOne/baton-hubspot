@@ -237,6 +237,11 @@ func (c *Client) UpdateUser(ctx context.Context, userId string, payload *UpdateU
 }
 
 func (c *Client) GetDeletedUsers(ctx context.Context, pageOptions GetUsersVars) ([]string, string, annotations.Annotations, error) {
+	// CRM object search rejects limit > 100 (settings/users allows larger pages).
+	limit := pageOptions.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 100
+	}
 	userFilter := Filter{
 		PropertieName: "hs_deactivated",
 		Operator:      EqualOperator,
@@ -246,7 +251,7 @@ func (c *Client) GetDeletedUsers(ctx context.Context, pageOptions GetUsersVars) 
 	payload := SearchUserObjectPayload{
 		FilterGroups: filters,
 		Properties:   []string{"hs_deactivated", HSInternalUserId},
-		Limit:        pageOptions.Limit,
+		Limit:        limit,
 		After:        pageOptions.After,
 	}
 	var res SearchUserObjectResponse
