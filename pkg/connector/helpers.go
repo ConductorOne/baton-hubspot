@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-var ResourcesPageSize = 50
+var ResourcesPageSize = 1000
 
 const (
 	profileFieldEmail            = "email"
