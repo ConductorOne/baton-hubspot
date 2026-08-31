@@ -59,15 +59,28 @@ func (c *Client) accountLastLoginURL() string {
 }
 
 type UsersResponse struct {
-	Results []User          `json:"results"`
-	Paging  *PaginationData `json:"paging"`
+	Results []User `json:"results"`
 }
 
-// HasPaginationData reports whether HubSpot returned the paging object. The
-// 2026-03 endpoint omits it and silently truncates, so uhttp.WithPaginationData
-// turns that into an error instead of a short sync.
-func (u *UsersResponse) HasPaginationData() bool {
-	return u.Paging != nil
+// PagingResponse decodes just the paging envelope every HubSpot list endpoint
+// returns, so uhttp.WithPaginationData can assert the API actually reported a
+// page without caring about the payload alongside it. Paging is a pointer so a
+// missing object (the 2026-03 endpoint omits it and silently truncates) stays
+// distinguishable from an empty one, which is a legitimate last page.
+type PagingResponse struct {
+	Paging *PaginationData `json:"paging"`
+}
+
+func (p *PagingResponse) HasPaginationData() bool {
+	return p.Paging != nil
+}
+
+// NextPage returns the cursor for the next page, empty on the last page.
+func (p *PagingResponse) NextPage() string {
+	if p.Paging == nil {
+		return ""
+	}
+	return p.Paging.Next.After
 }
 
 type AccountLoginResponse struct {
@@ -148,11 +161,13 @@ func setupPaginationQuery(query url.Values, limit int, after string) url.Values 
 func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]User, string, annotations.Annotations, error) {
 	queryParams := setupPaginationQuery(url.Values{}, getUsersVars.Limit, getUsersVars.After)
 	var userResponse UsersResponse
+	var paging PagingResponse
 
 	annos, err := c.getPaginated(
 		ctx,
 		c.listUsersURL(),
 		&userResponse,
+		&paging,
 		queryParams,
 	)
 
@@ -160,7 +175,7 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 		return nil, "", nil, err
 	}
 
-	return userResponse.Results, userResponse.Paging.Next.After, annos, nil
+	return userResponse.Results, paging.NextPage(), annos, nil
 }
 
 // GetTeams returns all teams for a single account.
@@ -337,15 +352,17 @@ func (c *Client) get(ctx context.Context, url string, resourceResponse interface
 	return c.doRequest(ctx, url, http.MethodGet, nil, resourceResponse, queryParams)
 }
 
-// getPaginated decodes into resourceResponse and fails the request when the API
-// returns a success without pagination data.
+// getPaginated decodes the payload into resourceResponse and the paging
+// envelope into paging, failing the request when the API returns a success
+// without pagination data. Both targets decode from the same buffered body.
 func (c *Client) getPaginated(
 	ctx context.Context,
 	url string,
-	resourceResponse uhttp.PaginatedResponse,
+	resourceResponse interface{},
+	paging *PagingResponse,
 	queryParams url.Values,
 ) (annotations.Annotations, error) {
-	return c.doRequest(ctx, url, http.MethodGet, nil, nil, queryParams, uhttp.WithPaginationData(resourceResponse))
+	return c.doRequest(ctx, url, http.MethodGet, nil, resourceResponse, queryParams, uhttp.WithPaginationData(paging))
 }
 
 func (c *Client) put(ctx context.Context, url string, data interface{}, resourceResponse interface{}) (annotations.Annotations, error) {
