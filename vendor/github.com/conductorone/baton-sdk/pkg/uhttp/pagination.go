@@ -1,7 +1,12 @@
 package uhttp
 
 import (
+	"errors"
+	"fmt"
 	"strings"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/conductorone/baton-sdk/pkg/pagination"
 )
@@ -94,6 +99,38 @@ func WithNextLinkPagination(bag *pagination.Bag, config *NextLinkConfig) DoOptio
 			ResourceTypeID: config.ResourceTypeID,
 			ResourceID:     config.ResourceID,
 		})
+		return nil
+	}
+}
+
+type PaginatedResponse interface {
+	HasPaginationData() bool
+}
+
+var ErrMissingPaginationData = errors.New("uhttp: response is missing pagination data")
+
+func WithPaginationData(response PaginatedResponse) DoOption {
+	return func(resp *WrapperResponse) error {
+		if response == nil {
+			return status.Error(codes.InvalidArgument, "WithPaginationData: response is nil")
+		}
+
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return nil
+		}
+
+		if err := WithResponse(response)(resp); err != nil {
+			return err
+		}
+
+		if !response.HasPaginationData() {
+			return WrapErrors(
+				codes.FailedPrecondition,
+				fmt.Sprintf("%T reported no pagination data. status code: %d", response, resp.StatusCode),
+				ErrMissingPaginationData,
+			)
+		}
+
 		return nil
 	}
 }

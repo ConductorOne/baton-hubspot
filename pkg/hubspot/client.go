@@ -59,8 +59,15 @@ func (c *Client) accountLastLoginURL() string {
 }
 
 type UsersResponse struct {
-	Results []User         `json:"results"`
-	Paging  PaginationData `json:"paging"`
+	Results []User          `json:"results"`
+	Paging  *PaginationData `json:"paging"`
+}
+
+// HasPaginationData reports whether HubSpot returned the paging object. The
+// 2026-03 endpoint omits it and silently truncates, so uhttp.WithPaginationData
+// turns that into an error instead of a short sync.
+func (u *UsersResponse) HasPaginationData() bool {
+	return u.Paging != nil
 }
 
 type AccountLoginResponse struct {
@@ -142,7 +149,7 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 	queryParams := setupPaginationQuery(url.Values{}, getUsersVars.Limit, getUsersVars.After)
 	var userResponse UsersResponse
 
-	annos, err := c.get(
+	annos, err := c.getPaginated(
 		ctx,
 		c.listUsersURL(),
 		&userResponse,
@@ -153,11 +160,7 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 		return nil, "", nil, err
 	}
 
-	if (userResponse.Paging != PaginationData{}) {
-		return userResponse.Results, userResponse.Paging.Next.After, annos, nil
-	}
-
-	return userResponse.Results, "", annos, nil
+	return userResponse.Results, userResponse.Paging.Next.After, annos, nil
 }
 
 // GetTeams returns all teams for a single account.
@@ -334,6 +337,17 @@ func (c *Client) get(ctx context.Context, url string, resourceResponse interface
 	return c.doRequest(ctx, url, http.MethodGet, nil, resourceResponse, queryParams)
 }
 
+// getPaginated decodes into resourceResponse and fails the request when the API
+// returns a success without pagination data.
+func (c *Client) getPaginated(
+	ctx context.Context,
+	url string,
+	resourceResponse uhttp.PaginatedResponse,
+	queryParams url.Values,
+) (annotations.Annotations, error) {
+	return c.doRequest(ctx, url, http.MethodGet, nil, nil, queryParams, uhttp.WithPaginationData(resourceResponse))
+}
+
 func (c *Client) put(ctx context.Context, url string, data interface{}, resourceResponse interface{}) (annotations.Annotations, error) {
 	return c.doRequest(ctx, url, http.MethodPut, data, resourceResponse, nil)
 }
@@ -353,6 +367,7 @@ func (c *Client) doRequest(
 	data interface{},
 	resourceResponse interface{},
 	queryParams url.Values,
+	doOptions ...uhttp.DoOption,
 ) (annotations.Annotations, error) {
 	parsedURL, err := url.Parse(urlAddress)
 	if err != nil {
@@ -376,7 +391,6 @@ func (c *Client) doRequest(
 		return nil, err
 	}
 
-	var doOptions []uhttp.DoOption
 	if resourceResponse != nil {
 		doOptions = append(doOptions, uhttp.WithJSONResponse(resourceResponse))
 	}
