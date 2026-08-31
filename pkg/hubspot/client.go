@@ -59,28 +59,20 @@ func (c *Client) accountLastLoginURL() string {
 }
 
 type UsersResponse struct {
-	Results []User `json:"results"`
+	Results []User          `json:"results"`
+	Paging  *PaginationData `json:"paging"`
 }
 
-// PagingResponse decodes just the paging envelope every HubSpot list endpoint
-// returns, so uhttp.WithPaginationData can assert the API actually reported a
-// page without caring about the payload alongside it. Paging is a pointer so a
-// missing object (the 2026-03 endpoint omits it and silently truncates) stays
-// distinguishable from an empty one, which is a legitimate last page.
-type PagingResponse struct {
-	Paging *PaginationData `json:"paging"`
-}
-
-func (p *PagingResponse) HasPaginationData() bool {
-	return p.Paging != nil
-}
-
-// NextPage returns the cursor for the next page, empty on the last page.
-func (p *PagingResponse) NextPage() string {
-	if p.Paging == nil {
-		return ""
-	}
-	return p.Paging.Next.After
+// HasPaginationData makes UsersResponse a uhttp.PaginatedResponse.
+// WithPaginationData unmarshals the whole body into whatever it is given, so the
+// receiver has to mirror the top level of the response; an inner field would
+// decode against the wrong level and always report nothing.
+//
+// Paging is a pointer because encoding/json leaves a value field zero whether
+// the key was absent or empty, and those mean opposite things here: absent is
+// the 2026-03 endpoint truncating silently, empty is a legitimate last page.
+func (u *UsersResponse) HasPaginationData() bool {
+	return u.Paging != nil
 }
 
 type AccountLoginResponse struct {
@@ -161,21 +153,24 @@ func setupPaginationQuery(query url.Values, limit int, after string) url.Values 
 func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]User, string, annotations.Annotations, error) {
 	queryParams := setupPaginationQuery(url.Values{}, getUsersVars.Limit, getUsersVars.After)
 	var userResponse UsersResponse
-	var paging PagingResponse
 
-	annos, err := c.getPaginated(
+	annos, err := c.get(
 		ctx,
 		c.listUsersURL(),
 		&userResponse,
-		&paging,
 		queryParams,
+		uhttp.WithPaginationData(&userResponse),
 	)
 
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	return userResponse.Results, paging.NextPage(), annos, nil
+	if userResponse.Paging != nil {
+		return userResponse.Results, userResponse.Paging.Next.After, annos, nil
+	}
+
+	return userResponse.Results, "", annos, nil
 }
 
 // GetTeams returns all teams for a single account.
@@ -348,21 +343,14 @@ func (c *Client) GetUserLastLogin(ctx context.Context, userId string) (*time.Tim
 	return nil, annos, nil
 }
 
-func (c *Client) get(ctx context.Context, url string, resourceResponse interface{}, queryParams url.Values) (annotations.Annotations, error) {
-	return c.doRequest(ctx, url, http.MethodGet, nil, resourceResponse, queryParams)
-}
-
-// getPaginated decodes the payload into resourceResponse and the paging
-// envelope into paging, failing the request when the API returns a success
-// without pagination data. Both targets decode from the same buffered body.
-func (c *Client) getPaginated(
+func (c *Client) get(
 	ctx context.Context,
 	url string,
 	resourceResponse interface{},
-	paging *PagingResponse,
 	queryParams url.Values,
+	doOptions ...uhttp.DoOption,
 ) (annotations.Annotations, error) {
-	return c.doRequest(ctx, url, http.MethodGet, nil, resourceResponse, queryParams, uhttp.WithPaginationData(paging))
+	return c.doRequest(ctx, url, http.MethodGet, nil, resourceResponse, queryParams, doOptions...)
 }
 
 func (c *Client) put(ctx context.Context, url string, data interface{}, resourceResponse interface{}) (annotations.Annotations, error) {
