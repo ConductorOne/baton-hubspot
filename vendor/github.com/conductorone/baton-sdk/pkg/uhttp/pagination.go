@@ -3,6 +3,7 @@ package uhttp
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"google.golang.org/grpc/codes"
@@ -103,19 +104,28 @@ func WithNextLinkPagination(bag *pagination.Bag, config *NextLinkConfig) DoOptio
 	}
 }
 
+// PaginatedResponse is implemented by response types that can report whether the API returned the pagination data the caller needs to fetch the next page.
 type PaginatedResponse interface {
 	HasPaginationData() bool
 }
 
+// ErrMissingPaginationData is the sentinel returned when a successful response decoded fine but carried no pagination data; match it with errors.Is.
 var ErrMissingPaginationData = errors.New("uhttp: response is missing pagination data")
 
+// WithPaginationData decodes the body into response and fails the request if its pagination data is absent, so an API that silently drops its cursor errors instead of ending the sync after one page.
+// response must be a non-nil pointer, since the body is decoded into it.
 func WithPaginationData(response PaginatedResponse) DoOption {
 	return func(resp *WrapperResponse) error {
 		if response == nil {
 			return status.Error(codes.InvalidArgument, "WithPaginationData: response is nil")
 		}
 
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		rv := reflect.ValueOf(response)
+		if rv.Kind() != reflect.Pointer || rv.IsNil() {
+			return status.Errorf(codes.InvalidArgument, "WithPaginationData: response must be a non-nil pointer, got %T", response)
+		}
+
+		if !isSuccessStatusCode(resp.StatusCode) {
 			return nil
 		}
 
