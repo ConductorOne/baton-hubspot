@@ -28,12 +28,6 @@ func (c *Client) usersURL() string {
 	return c.baseURL.JoinPath("settings/users/2026-03").String()
 }
 
-// listUsersURL is the paginated list endpoint. 2026-09-beta returns
-// paging.next.after with limit=50; 2026-03 omits paging and silently truncates.
-func (c *Client) listUsersURL() string {
-	return c.baseURL.JoinPath("settings/users/2026-09-beta").String()
-}
-
 func (c *Client) userURL(userID string) string {
 	return c.baseURL.JoinPath("settings/users/2026-03", userID).String()
 }
@@ -59,8 +53,20 @@ func (c *Client) accountLastLoginURL() string {
 }
 
 type UsersResponse struct {
-	Results []User         `json:"results"`
-	Paging  PaginationData `json:"paging"`
+	Results []User          `json:"results"`
+	Paging  *PaginationData `json:"paging"`
+}
+
+// HasPaginationData makes UsersResponse a uhttp.PaginatedResponse.
+// WithPaginationData unmarshals the whole body into whatever it is given, so the
+// receiver has to mirror the top level of the response; an inner field would
+// decode against the wrong level and always report nothing.
+//
+// Paging is a pointer because encoding/json leaves a value field zero whether
+// the key was absent or empty, and those mean opposite things here: absent is
+// the endpoint truncating silently, empty is a legitimate last page.
+func (u *UsersResponse) HasPaginationData() bool {
+	return u.Paging != nil
 }
 
 type AccountLoginResponse struct {
@@ -144,16 +150,17 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 
 	annos, err := c.get(
 		ctx,
-		c.listUsersURL(),
+		c.usersURL(),
 		&userResponse,
 		queryParams,
+		uhttp.WithPaginationData(&userResponse),
 	)
 
 	if err != nil {
 		return nil, "", nil, err
 	}
 
-	if (userResponse.Paging != PaginationData{}) {
+	if userResponse.Paging != nil {
 		return userResponse.Results, userResponse.Paging.Next.After, annos, nil
 	}
 
@@ -330,8 +337,14 @@ func (c *Client) GetUserLastLogin(ctx context.Context, userId string) (*time.Tim
 	return nil, annos, nil
 }
 
-func (c *Client) get(ctx context.Context, url string, resourceResponse interface{}, queryParams url.Values) (annotations.Annotations, error) {
-	return c.doRequest(ctx, url, http.MethodGet, nil, resourceResponse, queryParams)
+func (c *Client) get(
+	ctx context.Context,
+	url string,
+	resourceResponse interface{},
+	queryParams url.Values,
+	doOptions ...uhttp.DoOption,
+) (annotations.Annotations, error) {
+	return c.doRequest(ctx, url, http.MethodGet, nil, resourceResponse, queryParams, doOptions...)
 }
 
 func (c *Client) put(ctx context.Context, url string, data interface{}, resourceResponse interface{}) (annotations.Annotations, error) {
@@ -353,6 +366,7 @@ func (c *Client) doRequest(
 	data interface{},
 	resourceResponse interface{},
 	queryParams url.Values,
+	doOptions ...uhttp.DoOption,
 ) (annotations.Annotations, error) {
 	parsedURL, err := url.Parse(urlAddress)
 	if err != nil {
@@ -376,7 +390,6 @@ func (c *Client) doRequest(
 		return nil, err
 	}
 
-	var doOptions []uhttp.DoOption
 	if resourceResponse != nil {
 		doOptions = append(doOptions, uhttp.WithJSONResponse(resourceResponse))
 	}
