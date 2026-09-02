@@ -28,12 +28,6 @@ func (c *Client) usersURL() string {
 	return c.baseURL.JoinPath("settings/users/2026-03").String()
 }
 
-// listUsersURL is the paginated list endpoint. 2026-09-beta returns
-// paging.next.after with limit=50; 2026-03 omits paging and silently truncates.
-func (c *Client) listUsersURL() string {
-	return c.baseURL.JoinPath("settings/users/2026-09-beta").String()
-}
-
 func (c *Client) userURL(userID string) string {
 	return c.baseURL.JoinPath("settings/users/2026-03", userID).String()
 }
@@ -70,7 +64,7 @@ type UsersResponse struct {
 //
 // Paging is a pointer because encoding/json leaves a value field zero whether
 // the key was absent or empty, and those mean opposite things here: absent is
-// the 2026-03 endpoint truncating silently, empty is a legitimate last page.
+// the endpoint truncating silently, empty is a legitimate last page.
 func (u *UsersResponse) HasPaginationData() bool {
 	return u.Paging != nil
 }
@@ -156,7 +150,7 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 
 	annos, err := c.get(
 		ctx,
-		c.listUsersURL(),
+		c.usersURL(),
 		&userResponse,
 		queryParams,
 		uhttp.WithPaginationData(&userResponse),
