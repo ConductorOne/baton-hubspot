@@ -37,7 +37,7 @@ baton resources
 ## docker
 
 ```
-docker run --rm -v $(pwd):/out -e BATON_TOKEN=hubspotAccessToken ghcr.io/conductorone/baton-hubspot:latest -f "/out/sync.c1z"
+docker run --rm -v $(pwd):/out -e BATON_TOKEN=hubspotAccessToken public.ecr.aws/conductorone/baton-hubspot:latest -f "/out/sync.c1z"
 docker run --rm -v $(pwd):/out ghcr.io/conductorone/baton:latest -f "/out/sync.c1z" resources
 ```
 
