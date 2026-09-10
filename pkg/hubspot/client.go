@@ -6,11 +6,16 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -22,14 +27,20 @@ type Client struct {
 	*uhttp.BaseHttpClient
 	accessToken string
 	baseURL     *url.URL
+
+	// listUsersFallback is set once the beta list endpoint turns out to be
+	// unavailable for the portal, so that subsequent pages go straight to the
+	// stable endpoint instead of re-probing the beta one on every call.
+	listUsersFallback atomic.Bool
 }
 
 func (c *Client) usersURL() string {
 	return c.baseURL.JoinPath("settings/users/2026-03").String()
 }
 
-// listUsersURL is the paginated list endpoint. 2026-09-beta returns
+// listUsersURL is the preferred paginated list endpoint. 2026-09-beta returns
 // paging.next.after with limit=50; 2026-03 omits paging and silently truncates.
+// Portals without access to the beta version fall back to usersURL - see GetUsers.
 func (c *Client) listUsersURL() string {
 	return c.baseURL.JoinPath("settings/users/2026-09-beta").String()
 }
@@ -137,20 +148,46 @@ func setupPaginationQuery(query url.Values, limit int, after string) url.Values 
 	return query
 }
 
-// GetUsers returns all users for a single workspace.
+// GetUsers returns all users for a single workspace. It lists from the paginated
+// beta endpoint and falls back to the stable settings/users/2026-03 endpoint for
+// portals where the beta version is not available.
 func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]User, string, annotations.Annotations, error) {
+	if !c.listUsersFallback.Load() {
+		users, nextPage, annos, err := c.listUsers(ctx, c.listUsersURL(), getUsersVars)
+		if err == nil {
+			return users, nextPage, annos, nil
+		}
+		if !isEndpointUnavailableError(err) {
+			return nil, "", annos, err
+		}
+
+		// Remember the fallback so later pages don't re-probe the beta endpoint.
+		c.listUsersFallback.Store(true)
+		ctxzap.Extract(ctx).Warn(
+			"baton-hubspot: beta user list endpoint unavailable, falling back to stable endpoint",
+			zap.String("beta_url", c.listUsersURL()),
+			zap.String("fallback_url", c.usersURL()),
+			zap.Error(err),
+		)
+	}
+
+	// The stable endpoint returns no paging data, so this yields a single page.
+	return c.listUsers(ctx, c.usersURL(), getUsersVars)
+}
+
+func (c *Client) listUsers(ctx context.Context, listURL string, getUsersVars GetUsersVars) ([]User, string, annotations.Annotations, error) {
 	queryParams := setupPaginationQuery(url.Values{}, getUsersVars.Limit, getUsersVars.After)
 	var userResponse UsersResponse
 
 	annos, err := c.get(
 		ctx,
-		c.listUsersURL(),
+		listURL,
 		&userResponse,
 		queryParams,
 	)
 
 	if err != nil {
-		return nil, "", nil, err
+		return nil, "", annos, err
 	}
 
 	if (userResponse.Paging != PaginationData{}) {
@@ -158,6 +195,25 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 	}
 
 	return userResponse.Results, "", annos, nil
+}
+
+// isEndpointUnavailableError reports whether the error means HubSpot doesn't serve
+// this endpoint version to the portal (unknown version, missing beta access, or an
+// unsupported request shape), in which case retrying another version can succeed.
+// Authentication failures and transient errors are excluded - a retry against a
+// different version would fail the same way.
+func isEndpointUnavailableError(err error) bool {
+	s, ok := status.FromError(err)
+	if !ok {
+		return false
+	}
+
+	switch s.Code() {
+	case codes.NotFound, codes.PermissionDenied, codes.Unimplemented, codes.InvalidArgument:
+		return true
+	default:
+		return false
+	}
 }
 
 // GetTeams returns all teams for a single account.
