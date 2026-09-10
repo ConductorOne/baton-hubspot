@@ -28,12 +28,6 @@ func (c *Client) usersURL() string {
 	return c.baseURL.JoinPath("settings/users/2026-03").String()
 }
 
-// listUsersURL is the paginated list endpoint. 2026-09-beta returns
-// paging.next.after with limit=50; 2026-03 omits paging and silently truncates.
-func (c *Client) listUsersURL() string {
-	return c.baseURL.JoinPath("settings/users/2026-09-beta").String()
-}
-
 func (c *Client) userURL(userID string) string {
 	return c.baseURL.JoinPath("settings/users/2026-03", userID).String()
 }
@@ -144,7 +138,7 @@ func (c *Client) GetUsers(ctx context.Context, getUsersVars GetUsersVars) ([]Use
 
 	annos, err := c.get(
 		ctx,
-		c.listUsersURL(),
+		c.usersURL(),
 		&userResponse,
 		queryParams,
 	)
