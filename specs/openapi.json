@@ -1,0 +1,1534 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "baton-hubspot API surface",
+    "version": "1.0.0",
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    },
+    "description": "The HubSpot endpoints baton-hubspot calls. Scope is connector scope: operations and schemas are narrowed from HubSpot's published specs to what the client in `pkg/hubspot/client.go` actually requests.\n\nEach operation records `x-baton-client` (the request site) and `x-baton-source` (the published spec it was taken from, and when).\n\nMaintained per `.claude/skills/connector/build-openapi-spec.md`. Update it in the same PR as any change to the request surface."
+  },
+  "servers": [
+    {
+      "url": "https://api.hubapi.com",
+      "description": "Default base URL; overridable via connector config."
+    }
+  ],
+  "security": [
+    {
+      "privateAppToken": []
+    }
+  ],
+  "paths": {
+    "/settings/users/2026-03": {
+      "get": {
+        "tags": [
+          "Basic"
+        ],
+        "summary": "Retrieves users",
+        "description": "Retrieve a paginated list of users in your HubSpot account. This endpoint allows you to specify the maximum number of results per page and to use a paging cursor for navigating through the list of users.\n\nConnector pins the `2026-03` version of the User Provisioning API and requests `limit=50` (`ResourcesPageSize`, pkg/connector/helpers.go:14), paging forward with `after` taken from `paging.next.after` and stopping when `paging` comes back empty. HubSpot also publishes a newer `2026-09` version of this API; the connector does not use it.",
+        "operationId": "listUsers",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "description": "The paging cursor token of the last successfully read resource will be returned as the `paging.next.after` JSON property of a paged response containing more results.",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The maximum number of results to display per page.",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponsePublicUserForwardPaging"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "oauth2": [
+              "settings.users.read"
+            ]
+          },
+          {
+            "oauth2": [
+              "crm.objects.users.read"
+            ]
+          }
+        ],
+        "x-baton-client": "pkg/hubspot/client.go:139",
+        "x-baton-source": {
+          "url": "https://api.hubspot.com/public/api/spec/v2/specs/release/75360/version/2026-03",
+          "path": "/settings/users/2026-03",
+          "accessedAt": "2026-09-15"
+        }
+      },
+      "post": {
+        "tags": [
+          "Basic"
+        ],
+        "operationId": "inviteUser",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserProvisionRequestMarch2026"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "successful operation",
+            "headers": {
+              "Location": {
+                "description": "URL of the newly created resource",
+                "style": "simple",
+                "explode": false,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicUser"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "oauth2": [
+              "crm.objects.users.write"
+            ]
+          },
+          {
+            "oauth2": [
+              "settings.users.write"
+            ]
+          }
+        ],
+        "summary": "Invite a user to the portal",
+        "description": "Invite a user to the portal",
+        "x-baton-client": "pkg/hubspot/client.go:294",
+        "x-baton-source": {
+          "url": "https://api.hubspot.com/public/api/spec/v2/specs/release/75360/version/2026-03",
+          "path": "/settings/users/2026-03",
+          "accessedAt": "2026-09-15"
+        }
+      }
+    },
+    "/settings/users/2026-03/{userId}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Retrieves a user",
+        "description": "Retrieves a user identified by `userId`. `userId` refers to the user's ID by default, or optionally email as specified by the `IdProperty` query param.",
+        "operationId": "getUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idProperty",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "EMAIL",
+                "USER_ID"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicUserMarch2026"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "oauth2": [
+              "settings.users.read"
+            ]
+          },
+          {
+            "oauth2": [
+              "crm.objects.users.read"
+            ]
+          }
+        ],
+        "x-baton-client": "pkg/hubspot/client.go:194",
+        "x-baton-source": {
+          "url": "https://api.hubspot.com/public/api/spec/v2/specs/release/75360/version/2026-03",
+          "path": "/settings/users/2026-03/{userId}",
+          "accessedAt": "2026-09-15"
+        }
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Modifies a user",
+        "description": "Modifies a user identified by `userId`. `userId` refers to the user's ID by default, or optionally email as specified by the `IdProperty` query param.",
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idProperty",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "EMAIL",
+                "USER_ID"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicUserUpdateMarch2026"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicUserMarch2026"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "oauth2": [
+              "crm.objects.users.write"
+            ]
+          },
+          {
+            "oauth2": [
+              "settings.users.write"
+            ]
+          }
+        ],
+        "x-baton-client": "pkg/hubspot/client.go:226",
+        "x-baton-source": {
+          "url": "https://api.hubspot.com/public/api/spec/v2/specs/release/75360/version/2026-03",
+          "path": "/settings/users/2026-03/{userId}",
+          "accessedAt": "2026-09-15"
+        }
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Removes a user",
+        "description": "Removes a user identified by `userId`. `userId` refers to the user's ID by default, or optionally email as specified by the `IdProperty` query param.",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "",
+            "required": true,
+            "style": "simple",
+            "explode": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idProperty",
+            "in": "query",
+            "description": "",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "EMAIL",
+                "USER_ID"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content",
+            "content": {}
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "oauth2": [
+              "crm.objects.users.write"
+            ]
+          },
+          {
+            "oauth2": [
+              "settings.users.write"
+            ]
+          }
+        ],
+        "x-baton-client": "pkg/hubspot/client.go:274",
+        "x-baton-source": {
+          "url": "https://api.hubspot.com/public/api/spec/v2/specs/release/75360/version/2026-03",
+          "path": "/settings/users/2026-03/{userId}",
+          "accessedAt": "2026-09-15"
+        }
+      }
+    },
+    "/settings/users/2026-03/teams": {
+      "get": {
+        "tags": [
+          "Teams"
+        ],
+        "summary": "See details about this account's teams",
+        "description": "View teams for this account",
+        "operationId": "listTeams",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponsePublicTeamNoPaging"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "oauth2": [
+              "settings.users.teams.read"
+            ]
+          }
+        ],
+        "x-baton-client": "pkg/hubspot/client.go:160",
+        "x-baton-source": {
+          "url": "https://api.hubspot.com/public/api/spec/v2/specs/release/75360/version/2026-03",
+          "path": "/settings/users/2026-03/teams",
+          "accessedAt": "2026-09-15"
+        }
+      }
+    },
+    "/settings/users/2026-03/roles": {
+      "get": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "Retrieves the roles on an account",
+        "description": "Retrieves the roles on an account",
+        "operationId": "listRoles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponsePublicPermissionSetNoPaging"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "oauth2": [
+              "settings.users.read"
+            ]
+          },
+          {
+            "oauth2": [
+              "crm.objects.users.read"
+            ]
+          }
+        ],
+        "x-baton-client": "pkg/hubspot/client.go:210",
+        "x-baton-source": {
+          "url": "https://api.hubspot.com/public/api/spec/v2/specs/release/75360/version/2026-03",
+          "path": "/settings/users/2026-03/roles",
+          "accessedAt": "2026-09-15"
+        }
+      }
+    },
+    "/account-info/v3/details": {
+      "get": {
+        "tags": [
+          "Basic"
+        ],
+        "summary": "Retrieve account details",
+        "description": "Retrieve account details such as the account type, time zone, currencies, and data hosting location.\n\nKnown defect inherited from HubSpot's published spec: the 200 example includes `createdAt` and `portalName`, but neither is declared in `PortalInformationResponse.properties`. Both are left undeclared here rather than invented into the schema; the connector reads only `portalId` and `accountType`. This is the source of the `no-invalid-media-type-examples` lint warnings on this operation. The `Error`/`ErrorDetail` `context` example warnings are likewise upstream defects.",
+        "operationId": "getAccountDetails",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalInformationResponse"
+                },
+                "example": {
+                  "additionalCurrencies": [
+                    "NZD",
+                    "AUD",
+                    "EUR"
+                  ],
+                  "companyCurrency": "USD",
+                  "createdAt": 1648840584303,
+                  "dataHostingLocation": "eu1",
+                  "portalId": 12345678,
+                  "portalName": "Acme Inc",
+                  "timeZone": "US/Eastern",
+                  "uiDomain": "app-eu1.hubspot.com",
+                  "utcOffset": "-04:00",
+                  "utcOffsetMilliseconds": -14400000
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "x-hubspot-user-level-auth": {
+          "internalOnly": false
+        },
+        "x-baton-client": "pkg/hubspot/client.go:177",
+        "x-baton-source": {
+          "url": "https://api.hubspot.com/public/api/spec/v2/specs/release/25201/version/3",
+          "path": "/account-info/v3/details",
+          "accessedAt": "2026-09-15"
+        }
+      }
+    },
+    "/account-info/v3/activity/login": {
+      "get": {
+        "tags": [
+          "Basic"
+        ],
+        "summary": "Retrieve login activity",
+        "description": "Retrieve logs of user actions related to [login activity](https://knowledge.hubspot.com/account-management/view-and-export-account-activity-history#account-login-history).\n\nConnector hardcodes `limit=5` and reads the first result whose `loginSucceeded` is true. Documented in HubSpot's Audit Logs API, not Account Info.",
+        "operationId": "getLoginActivity",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "description": "The cursor token value to get the next set of results. You can get this from the `paging.next.after` JSON property of a paged response containing more results.",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The maximum number of results to display per page. Max value of limit is 200.",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "description": "Identifier of user to retrieve activities for",
+            "required": false,
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponsePublicLoginAuditForwardPaging"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [
+          {
+            "oauth2": [
+              "account-info.security.read"
+            ]
+          }
+        ],
+        "x-baton-client": "pkg/hubspot/client.go:308",
+        "x-baton-source": {
+          "url": "https://api.hubspot.com/public/api/spec/v2/specs/release/22116/version/3",
+          "path": "/account-info/v3/activity/login",
+          "accessedAt": "2026-09-15"
+        }
+      }
+    },
+    "/crm/v3/objects/users/search": {
+      "post": {
+        "tags": [
+          "Search"
+        ],
+        "summary": "Search for users based on specified criteria.",
+        "description": "Execute a search for users using defined filters, properties, and sorting options. The request must include a search query and can return up to 200 results per request.\n\nConnector sends a fixed filter (`hs_deactivated EQ true`) and requests properties `hs_deactivated` and `hs_internal_user_id`. The `properties` list determines which properties come back, so changing it changes the response.",
+        "operationId": "searchDeletedUsers",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublicObjectSearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponseWithTotalSimplePublicObject"
+                }
+              }
+            }
+          },
+          "default": {
+            "$ref": "#/components/responses/Error"
+          }
+        },
+        "security": [],
+        "x-hubspot-rate-limit-exemptions": [
+          "ten-secondly"
+        ],
+        "x-hubspot-user-level-auth": {
+          "internalOnly": false
+        },
+        "x-baton-client": "pkg/hubspot/client.go:253",
+        "x-baton-source": {
+          "url": "https://api.hubspot.com/public/api/spec/v2/specs/release/22192/version/3",
+          "path": "/crm/v3/objects/users/search",
+          "accessedAt": "2026-09-15"
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "Error": {
+        "description": "An error occurred.",
+        "content": {
+          "*/*": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "CollectionResponsePublicLoginAuditForwardPaging": {
+        "required": [
+          "results"
+        ],
+        "type": "object",
+        "properties": {
+          "paging": {
+            "$ref": "#/components/schemas/ForwardPaging"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicLoginAudit"
+            }
+          }
+        }
+      },
+      "CollectionResponsePublicPermissionSetNoPaging": {
+        "required": [
+          "results"
+        ],
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicPermissionSet"
+            }
+          }
+        }
+      },
+      "CollectionResponsePublicTeamNoPaging": {
+        "required": [
+          "results"
+        ],
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicTeam"
+            }
+          }
+        }
+      },
+      "CollectionResponsePublicUserForwardPaging": {
+        "required": [
+          "results"
+        ],
+        "type": "object",
+        "properties": {
+          "paging": {
+            "$ref": "#/components/schemas/ForwardPaging"
+          },
+          "results": {
+            "type": "array",
+            "description": "An array of PublicUser objects representing the users returned in the current page.",
+            "items": {
+              "$ref": "#/components/schemas/PublicUser"
+            }
+          }
+        }
+      },
+      "CollectionResponseWithTotalSimplePublicObject": {
+        "required": [
+          "results",
+          "total"
+        ],
+        "type": "object",
+        "properties": {
+          "paging": {
+            "$ref": "#/components/schemas/Paging"
+          },
+          "results": {
+            "type": "array",
+            "description": "An array containing the simple public objects returned in the current page of the response. This property is required.",
+            "items": {
+              "$ref": "#/components/schemas/SimplePublicObject"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "description": "The number of available results",
+            "format": "int32"
+          }
+        },
+        "description": "Represents a list of simple objects returned from an API request, along with the total count of objects available."
+      },
+      "Error": {
+        "required": [
+          "category",
+          "correlationId",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "The error category, providing a general classification of the error."
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Context about the error condition, represented as an object with additional properties that are arrays of strings.",
+            "example": "{invalidPropertyName=[propertyValue], missingScopes=[scope1, scope2]}"
+          },
+          "correlationId": {
+            "type": "string",
+            "description": "A unique identifier for the request. Include this value with any error reports or support tickets. It is formatted as a UUID.",
+            "format": "uuid",
+            "example": "aeb5f871-7f07-4993-9211-075dc63e7cbf"
+          },
+          "errors": {
+            "type": "array",
+            "description": "Further information about the error, represented as an array of ErrorDetail objects.",
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetail"
+            }
+          },
+          "links": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "A map of link names to associated URIs containing documentation about the error or recommended remediation steps."
+          },
+          "message": {
+            "type": "string",
+            "description": "A human readable message describing the error along with remediation steps where appropriate.",
+            "example": "An error occurred"
+          },
+          "subCategory": {
+            "type": "string",
+            "description": "A specific category that contains more specific detail about the error."
+          }
+        },
+        "description": "Represents an error response returned by the API when an operation fails. This component is used in various endpoints to provide detailed information about the error encountered.",
+        "example": {
+          "message": "Invalid input (details will vary based on the error)",
+          "correlationId": "aeb5f871-7f07-4993-9211-075dc63e7cbf",
+          "category": "VALIDATION_ERROR",
+          "links": {
+            "knowledge-base": "https://www.hubspot.com/products/service/knowledge-base"
+          }
+        }
+      },
+      "ErrorDetail": {
+        "required": [
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The status code associated with the error detail."
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Context about the error condition, represented as an object with additional properties. Each property is an array of strings providing further context.",
+            "example": "{missingScopes=[scope1, scope2]}"
+          },
+          "in": {
+            "type": "string",
+            "description": "The name of the field or parameter in which the error was found."
+          },
+          "message": {
+            "type": "string",
+            "description": "A human readable message describing the error along with remediation steps where appropriate. This is a required field."
+          },
+          "subCategory": {
+            "type": "string",
+            "description": "A specific category that contains more specific detail about the error."
+          }
+        },
+        "description": "Represents detailed information about an error that occurred in the API. This component is used to provide additional context and specifics about errors, typically as part of an error response."
+      },
+      "Filter": {
+        "required": [
+          "operator",
+          "propertyName"
+        ],
+        "type": "object",
+        "properties": {
+          "highValue": {
+            "type": "string",
+            "description": "The upper boundary value when using ranged-based filters."
+          },
+          "operator": {
+            "type": "string",
+            "description": "The comparison operator used in the filter, such as \"EQ\" or \"GT\".",
+            "enum": [
+              "BETWEEN",
+              "CONTAINS_TOKEN",
+              "EQ",
+              "GT",
+              "GTE",
+              "HAS_PROPERTY",
+              "IN",
+              "LT",
+              "LTE",
+              "NEQ",
+              "NOT_CONTAINS_TOKEN",
+              "NOT_HAS_PROPERTY",
+              "NOT_IN"
+            ]
+          },
+          "propertyName": {
+            "type": "string",
+            "description": "The name of the property to apply the filter to."
+          },
+          "value": {
+            "type": "string",
+            "description": "The value to match against the property."
+          },
+          "values": {
+            "type": "array",
+            "description": "The values to match against the property.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Defines a single condition for searching CRM objects, specifying the property to filter on, the operator to use (such as equals, greater than, or contains), and the value(s) to compare against. "
+      },
+      "FilterGroup": {
+        "required": [
+          "filters"
+        ],
+        "type": "object",
+        "properties": {
+          "filters": {
+            "type": "array",
+            "description": "A list of individual filter criteria that are applied together as a group. Each filter specifies a condition that records must meet to be included in the results.",
+            "items": {
+              "$ref": "#/components/schemas/Filter"
+            }
+          }
+        },
+        "description": "Represents a group of filters used to query data within HubSpot. This component is used to define criteria for filtering records in various API endpoints."
+      },
+      "ForwardPaging": {
+        "type": "object",
+        "properties": {
+          "next": {
+            "$ref": "#/components/schemas/NextPage"
+          }
+        },
+        "description": "Paging information for forward-only pagination. Contains the next page reference when more results are available; omitted or empty on the last page."
+      },
+      "NextPage": {
+        "required": [
+          "after"
+        ],
+        "type": "object",
+        "properties": {
+          "after": {
+            "type": "string",
+            "description": "A string token that indicates the position after the last item in the current page. It is used as a cursor to fetch the next set of results."
+          },
+          "link": {
+            "type": "string",
+            "description": "A string URL that provides a direct link to the next page of results."
+          }
+        },
+        "description": "Specifies the paging information needed to retrieve the next set of results in a paginated API response"
+      },
+      "NextPage_crmusers_v3": {
+        "required": [
+          "after"
+        ],
+        "type": "object",
+        "properties": {
+          "after": {
+            "type": "string",
+            "description": "A paging cursor token for retrieving subsequent pages."
+          },
+          "link": {
+            "type": "string",
+            "description": "A URL that can be used to retrieve the next page results."
+          }
+        },
+        "description": "Specifies the paging information needed to retrieve the next set of results in a paginated API response",
+        "example": {
+          "after": "NTI1Cg%3D%3D",
+          "link": "?after=NTI1Cg%3D%3D"
+        }
+      },
+      "Paging": {
+        "type": "object",
+        "properties": {
+          "next": {
+            "$ref": "#/components/schemas/NextPage_crmusers_v3"
+          },
+          "prev": {
+            "$ref": "#/components/schemas/PreviousPage"
+          }
+        },
+        "description": "Represents the pagination information for navigating through a list of results in the API. It provides details on how to access the previous or next set of results."
+      },
+      "PortalInformationResponse": {
+        "required": [
+          "accountType",
+          "additionalCurrencies",
+          "companyCurrency",
+          "dataHostingLocation",
+          "portalId",
+          "timeZone",
+          "uiDomain",
+          "utcOffset",
+          "utcOffsetMilliseconds"
+        ],
+        "type": "object",
+        "properties": {
+          "accountType": {
+            "type": "string",
+            "description": "The type of account, such as APP_DEVELOPER, DEVELOPER_TEST, SANDBOX, or STANDARD.",
+            "enum": [
+              "APP_DEVELOPER",
+              "DEVELOPER_TEST",
+              "SANDBOX",
+              "STANDARD"
+            ]
+          },
+          "additionalCurrencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "companyCurrency": {
+            "type": "string",
+            "description": "The primary currency used by the company."
+          },
+          "dataHostingLocation": {
+            "type": "string",
+            "description": "The location where the account's data is hosted."
+          },
+          "portalId": {
+            "type": "integer",
+            "description": "The unique identifier for the HubSpot account.",
+            "format": "int32"
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The time zone in which the account operates."
+          },
+          "uiDomain": {
+            "type": "string",
+            "description": "The domain used for accessing the HubSpot user interface."
+          },
+          "utcOffset": {
+            "type": "string",
+            "description": "The time zone offset from UTC in hours and minutes."
+          },
+          "utcOffsetMilliseconds": {
+            "type": "integer",
+            "description": "The time zone offset from UTC in milliseconds.",
+            "format": "int64"
+          }
+        }
+      },
+      "PreviousPage": {
+        "required": [
+          "before"
+        ],
+        "type": "object",
+        "properties": {
+          "before": {
+            "type": "string",
+            "description": "A paging cursor token for retrieving previous pages."
+          },
+          "link": {
+            "type": "string",
+            "description": "A URL that can be used to retrieve the previous pages' results."
+          }
+        },
+        "description": "specifies the paging information needed to retrieve the previous set of results in a paginated API response"
+      },
+      "PublicLoginAudit": {
+        "required": [
+          "id",
+          "loginAt",
+          "loginSucceeded"
+        ],
+        "type": "object",
+        "properties": {
+          "countryCode": {
+            "type": "string",
+            "description": "The approximate country code of the login"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address of the user associated with the login."
+          },
+          "id": {
+            "type": "string",
+            "description": "The login activity's unique ID."
+          },
+          "ipAddress": {
+            "type": "string",
+            "description": "IP address where the activity originated."
+          },
+          "location": {
+            "type": "string",
+            "description": "The approximate location where the login activity originated."
+          },
+          "loginAt": {
+            "type": "string",
+            "description": "The time the login took place.",
+            "format": "date-time"
+          },
+          "loginSucceeded": {
+            "type": "boolean",
+            "description": "Whether the login was successful or not."
+          },
+          "regionCode": {
+            "type": "string",
+            "description": "The approximate region code of the login"
+          },
+          "userAgent": {
+            "type": "string",
+            "description": "Information about the device used for logging in."
+          },
+          "userId": {
+            "type": "integer",
+            "description": "The user's unique ID.",
+            "format": "int32"
+          }
+        },
+        "description": "Details about the a particular login activity for a HubSpot account.",
+        "example": {
+          "countryCode": "ie",
+          "email": "person3@testdomain.com",
+          "id": "5432653",
+          "ipAddress": "45.56.67.89",
+          "loginAt": "2022-04-01T19:36:24.303Z",
+          "loginSucceeded": true,
+          "regionCode": "d",
+          "userAgent": "Mozilla/5.0 (Linux; Android 11; M2101K6G)",
+          "userId": 876
+        }
+      },
+      "PublicObjectSearchRequest": {
+        "required": [
+          "after",
+          "filterGroups",
+          "limit",
+          "properties",
+          "sorts"
+        ],
+        "type": "object",
+        "properties": {
+          "after": {
+            "type": "string",
+            "description": "A paging cursor token for retrieving subsequent pages."
+          },
+          "filterGroups": {
+            "type": "array",
+            "description": "Up to 6 groups of filters defining additional query criteria.",
+            "items": {
+              "$ref": "#/components/schemas/FilterGroup"
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "description": "The maximum results to return, up to 200 objects.",
+            "format": "int32"
+          },
+          "properties": {
+            "type": "array",
+            "description": "A list of property names to include in the response.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "query": {
+            "type": "string",
+            "description": "The search query string, up to 3000 characters."
+          },
+          "sorts": {
+            "type": "array",
+            "description": "Specifies sorting order based on object properties.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Describes a search request"
+      },
+      "PublicObjectWarning": {
+        "required": [
+          "category",
+          "context",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "The classification of the warning, indicating the type or nature of the issue."
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Additional information or metadata about the warning, providing context for understanding the issue."
+          },
+          "message": {
+            "type": "string",
+            "description": "The text of the warning message, providing information about the issue or alert."
+          }
+        },
+        "description": "Represents a warning message related to a public object in HubSpot, providing details about the nature and context of the warning."
+      },
+      "PublicPermissionSet": {
+        "required": [
+          "id",
+          "name",
+          "requiresBillingWrite"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The role's unique ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "The role's name"
+          },
+          "requiresBillingWrite": {
+            "type": "boolean",
+            "description": "Whether this role has a paid seat and requires the billing-write scope to assign/unassign to users"
+          }
+        }
+      },
+      "PublicTeam": {
+        "required": [
+          "id",
+          "name",
+          "secondaryUserIds",
+          "userIds"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The team's unique ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "The team's name"
+          },
+          "secondaryUserIds": {
+            "type": "array",
+            "description": "Secondary or additional members of this team",
+            "items": {
+              "type": "string"
+            }
+          },
+          "userIds": {
+            "type": "array",
+            "description": "Primary members of this team",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PublicUser": {
+        "required": [
+          "email",
+          "id",
+          "roleIds",
+          "superAdmin"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The user's email."
+          },
+          "firstName": {
+            "type": "string",
+            "description": "The user's first name."
+          },
+          "id": {
+            "type": "string",
+            "description": "The user's unique ID."
+          },
+          "lastName": {
+            "type": "string",
+            "description": "The user's last name."
+          },
+          "primaryTeamId": {
+            "type": "string",
+            "description": "The user's primary team"
+          },
+          "roleId": {
+            "type": "string",
+            "description": "The user's role."
+          },
+          "roleIds": {
+            "type": "array",
+            "description": "A list of role IDs assigned to the user.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "seatNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "An array of strings representing the names of seats assigned to the user."
+          },
+          "secondaryTeamIds": {
+            "type": "array",
+            "description": "The user's additional teams.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sendWelcomeEmail": {
+            "type": "boolean",
+            "description": "Whether a welcome email was sent to the user. This value will only be populated in response to a provisioning request. Subsequent queries will be false."
+          },
+          "superAdmin": {
+            "type": "boolean",
+            "description": "Whether the user has super admin privileges."
+          }
+        }
+      },
+      "PublicUserMarch2026": {
+        "required": [
+          "email",
+          "id",
+          "roleIds",
+          "superAdmin"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "primaryTeamId": {
+            "type": "string"
+          },
+          "roleId": {
+            "type": "string"
+          },
+          "roleIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "secondaryTeamIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sendWelcomeEmail": {
+            "type": "boolean"
+          },
+          "superAdmin": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PublicUserUpdateMarch2026": {
+        "type": "object",
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "primaryTeamId": {
+            "type": "string"
+          },
+          "roleId": {
+            "type": "string"
+          },
+          "secondaryTeamIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SimplePublicObject": {
+        "required": [
+          "archived",
+          "createdAt",
+          "id",
+          "properties",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "archived": {
+            "type": "boolean",
+            "description": "Whether the object is archived."
+          },
+          "archivedAt": {
+            "type": "string",
+            "description": "The timestamp when the object was archived, in ISO 8601 format.",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "The timestamp when the object was created, in ISO 8601 format.",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "description": "The unique ID of the object."
+          },
+          "objectWriteTraceId": {
+            "type": "string",
+            "description": "An identifier used to trace the write request for the object. Set a unique ID for each write operation; it is returned with any errors so you can identify which request encountered which error."
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Key-value pairs representing the properties of the object."
+          },
+          "propertiesWithHistory": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ValueWithTimestamp"
+              }
+            },
+            "description": "Key-value pairs representing the properties of the object along with their history, each with a timestamp and source information."
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "The timestamp when the object was last updated, in ISO 8601 format.",
+            "format": "date-time"
+          },
+          "url": {
+            "type": "string",
+            "description": "The URL associated with the object."
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicObjectWarning"
+            }
+          }
+        },
+        "description": "A simple public object.",
+        "example": {
+          "archived": false,
+          "createdAt": "2019-10-30T03:30:17.883Z",
+          "id": "512",
+          "properties": {
+            "property_checkbox": "false",
+            "property_date": "1572480000000",
+            "property_dropdown": "choice_b",
+            "property_multiple_checkboxes": "chocolate;strawberry",
+            "property_number": "17",
+            "property_radio": "option_1",
+            "property_string": "value"
+          },
+          "updatedAt": "2019-12-07T16:50:06.678Z"
+        }
+      },
+      "UserProvisionRequestMarch2026": {
+        "required": [
+          "email",
+          "sendWelcomeEmail"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "primaryTeamId": {
+            "type": "string"
+          },
+          "roleId": {
+            "type": "string"
+          },
+          "secondaryTeamIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sendWelcomeEmail": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ValueWithTimestamp": {
+        "required": [
+          "sourceType",
+          "timestamp",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "description": "A string identifier for the specific source of the value."
+          },
+          "sourceLabel": {
+            "type": "string",
+            "description": "A human-readable label."
+          },
+          "sourceType": {
+            "type": "string",
+            "description": "A string indicating the type of source from which the value originated."
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "The timestamp when the property was updated, in ISO 8601 format.",
+            "format": "date-time"
+          },
+          "updatedByUserId": {
+            "type": "integer",
+            "description": "The ID of the user who last updated the property.",
+            "format": "int32"
+          },
+          "value": {
+            "type": "string",
+            "description": "The property value."
+          }
+        },
+        "description": "Property model that includes timestamp."
+      }
+    },
+    "securitySchemes": {
+      "privateAppToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "HubSpot private app access token, sent as `Authorization: Bearer <token>`. This is how baton-hubspot authenticates every request (`uhttp.WithBearerToken`, pkg/hubspot/client.go:360). The token must carry the scopes each operation lists under `oauth2`."
+      },
+      "oauth2": {
+        "type": "oauth2",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://app.hubspot.com/oauth/authorize",
+            "tokenUrl": "https://api.hubapi.com/oauth/v1/token",
+            "scopes": {
+              "account-info.security.read": "",
+              "crm.objects.users.read": "",
+              "crm.objects.users.write": "",
+              "settings.users.read": "",
+              "settings.users.teams.read": "",
+              "settings.users.write": ""
+            }
+          }
+        }
+      }
+    }
+  }
+}
